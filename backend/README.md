@@ -1,7 +1,7 @@
 ---
 title: Rizzvision V2
 emoji: 👕
-colorFrom: violet
+colorFrom: indigo
 colorTo: purple
 sdk: docker
 pinned: false

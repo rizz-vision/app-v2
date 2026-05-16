@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+*.egg
+.pytest_cache/
+
+# Env
+.env
+.env.local
+*.env
+
+# Model artifacts (large — commit only final trained model)
+backend/model/*.keras
+backend/model/*.h5
+# keep threshold.json (small, versioned)
+!backend/model/threshold.json
+
+# Dataset (never commit)
+data/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Kaggle credentials
+kaggle.json

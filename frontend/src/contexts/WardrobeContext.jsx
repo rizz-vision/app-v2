@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../services/supabase.js'
-import { getWardrobeItems, addWardrobeItem, updateWardrobeItem, deleteWardrobeItem } from '../utils/storage.js'
+import { getWardrobeItems, addWardrobeItem, updateWardrobeItem, deleteWardrobeItem, uploadWardrobeImage } from '../utils/storage.js'
 import { useAuth } from './AuthContext.jsx'
 
 const WardrobeContext = createContext(null)
@@ -25,8 +25,13 @@ export function WardrobeProvider({ children }) {
     return () => supabase.removeChannel(channel)
   }, [user])
 
-  const addItem = useCallback(async (item) => {
-    const saved = await addWardrobeItem({ ...item, user_id: user.id })
+  // imageBlob is optional — if provided, uploads to storage and stores the URL
+  const addItem = useCallback(async (item, imageBlob) => {
+    let image_url = null
+    if (imageBlob) {
+      image_url = await uploadWardrobeImage(user.id, imageBlob)
+    }
+    const saved = await addWardrobeItem({ ...item, user_id: user.id, image_url })
     setItems((prev) => [saved, ...prev])
     return saved
   }, [user])

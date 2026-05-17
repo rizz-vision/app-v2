@@ -52,13 +52,16 @@ export function ScanScreen() {
     const name = customName.trim() || scanResult.suggested_name || 'Clothing Item'
     setPhase('saving')
     try {
-      await addItem({
-        name,
-        type: scanResult.category || 'tops',
-        category: scanResult.category || 'tops',
-        color: scanResult.color || '',
-        description: scanResult.long_description || scanResult.short_description || '',
-      })
+      await addItem(
+        {
+          name,
+          type: scanResult.category || 'tops',
+          category: scanResult.category || 'tops',
+          color: scanResult.color || '',
+          description: scanResult.long_description || scanResult.short_description || '',
+        },
+        capturedBlobRef.current  // upload the captured image
+      )
       speak(RESPONSES.saved(name))
       setTimeout(() => navigate(SCREENS.WARDROBE), 1200)
     } catch {

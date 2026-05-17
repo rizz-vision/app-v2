@@ -1,4 +1,3 @@
 {
-  "threshold": 0.87,
-  "note": "Calibrated after training. Update this after running ml/kaggle_train.ipynb."
+  "threshold": 0.71
 }

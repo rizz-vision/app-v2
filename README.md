@@ -48,6 +48,23 @@ cp .env.local.example .env.local   # fill in Supabase keys
 npm run dev                         # http://localhost:5173
 ```
 
+## Deployment
+
+**Frontend** — Vercel (auto-deploys on push to `main`).
+
+**Backend** — HuggingFace Spaces (`rizzvision69/app-v2-space`). Deploy with:
+
+```bash
+git push-hf
+```
+
+This alias (stored in `.git/config`) runs `scripts/push-hf.sh`, which copies `backend/` into a clean orphan worktree, wires up Git LFS for the `.keras` model, and force-pushes to the `hf-space` remote.
+
+> **Note:** The alias is local — on a fresh clone, register it once with:
+> ```bash
+> git config alias.push-hf '!scripts/push-hf.sh'
+> ```
+
 ## Targets
 
 - T-shirt detection accuracy: ≥ 93%

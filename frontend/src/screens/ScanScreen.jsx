@@ -9,7 +9,7 @@ import { quickScan } from '../services/api.js'
 import { SCREENS, COLORS, RESPONSES } from '../utils/constants.js'
 
 export function ScanScreen() {
-  const { navigate, goBack } = useApp()
+  const { navigate } = useApp()
   const { speak } = useVoice()
   const { addItem } = useWardrobe()
 
@@ -18,6 +18,7 @@ export function ScanScreen() {
   const [errorMsg, setErrorMsg] = useState('')
   const [scanResult, setScanResult] = useState(null)
   const [customName, setCustomName] = useState('')
+  const [descMode, setDescMode] = useState('short') // 'short' | 'long'
   const capturedBlobRef = useRef(null)
   const nameInputRef = useRef(null)
 
@@ -37,8 +38,8 @@ export function ScanScreen() {
     try {
       const result = await quickScan(blob)
       setScanResult(result)
-      setCustomName(result.name || result.suggested_name || '')
-      speak(result.short_description || result.name || result.suggested_name || 'Item identified.')
+      setCustomName(result.suggested_name || result.name || '')
+      speak(result.short_description || result.suggested_name || 'Item identified.')
       setPhase('naming')
     } catch (err) {
       const msg = err.message || 'Could not identify the item. Please try a clearer photo.'
@@ -48,10 +49,16 @@ export function ScanScreen() {
 
   const handleSave = useCallback(async () => {
     if (!scanResult) return
-    const name = customName.trim() || scanResult.name || scanResult.suggested_name || 'Clothing Item'
+    const name = customName.trim() || scanResult.suggested_name || 'Clothing Item'
     setPhase('saving')
     try {
-      await addItem({ name, type: scanResult.category || 'tops', category: scanResult.category || 'tops', color: scanResult.color || '', description: scanResult.short_description || '' })
+      await addItem({
+        name,
+        type: scanResult.category || 'tops',
+        category: scanResult.category || 'tops',
+        color: scanResult.color || '',
+        description: scanResult.long_description || scanResult.short_description || '',
+      })
       speak(RESPONSES.saved(name))
       setTimeout(() => navigate(SCREENS.WARDROBE), 1200)
     } catch {
@@ -77,6 +84,15 @@ export function ScanScreen() {
     reader.readAsDataURL(file)
   }, [handleCapture])
 
+  const toggleDesc = useCallback(() => {
+    const next = descMode === 'short' ? 'long' : 'short'
+    setDescMode(next)
+    const text = next === 'long'
+      ? (scanResult?.long_description || scanResult?.short_description || '')
+      : (scanResult?.short_description || '')
+    speak(text)
+  }, [descMode, scanResult, speak])
+
   useEffect(() => {
     const handler = (e) => {
       const cmd = e.detail
@@ -87,6 +103,7 @@ export function ScanScreen() {
     return () => window.removeEventListener('voiceCommand', handler)
   }, [phase, handleSave, reset])
 
+  // ── Camera ──
   if (phase === 'camera') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -97,7 +114,6 @@ export function ScanScreen() {
             borderRadius: COLORS.RADIUS, color: COLORS.TEXT,
             fontSize: 14, fontWeight: 700, padding: '10px 20px',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-            letterSpacing: 0.5,
           }}>
             🖼 Upload from Gallery
             <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
@@ -107,24 +123,26 @@ export function ScanScreen() {
     )
   }
 
+  // ── Analyzing / Saving ──
   if (phase === 'analyzing' || phase === 'saving') {
     const subtitle = phase === 'saving' ? 'Saving to your wardrobe.' : 'Identifying your item…'
     return (
       <Screen title={phase === 'saving' ? 'Saving…' : 'Identifying…'} subtitle={subtitle}>
-        {previewUrl && <img src={previewUrl} alt="" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 20, maxHeight: 320, objectFit: 'cover', border: `2px solid ${COLORS.BORDER}` }} />}
+        {previewUrl && <img src={previewUrl} alt="" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 20, maxHeight: 300, objectFit: 'cover', border: `2px solid ${COLORS.BORDER}` }} />}
         <div role="status" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 40, gap: 20 }}>
-          <Spinner />
-          <p aria-live="polite" style={{ color: COLORS.TEXT_MUTED, fontSize: 14, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', margin: 0 }}>{subtitle}</p>
+          <LoadingBars />
+          <p aria-live="polite" style={{ color: COLORS.TEXT_MUTED, fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', margin: 0 }}>{subtitle}</p>
         </div>
       </Screen>
     )
   }
 
+  // ── Error ──
   if (phase === 'error') {
     return (
       <Screen title="Photo Issue" subtitle="Please retake the photo.">
         {previewUrl && <img src={previewUrl} alt="" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 20, maxHeight: 280, objectFit: 'cover', opacity: 0.55, border: `2px solid ${COLORS.BORDER}` }} />}
-        <div role="alert" style={{ border: `2px solid ${COLORS.DANGER}`, borderRadius: COLORS.RADIUS, padding: 18, marginBottom: 24, background: COLORS.SURFACE }}>
+        <div role="alert" style={{ border: `2px solid ${COLORS.DANGER}`, borderRadius: COLORS.RADIUS, padding: 18, marginBottom: 20, background: COLORS.SURFACE }}>
           <p style={{ fontSize: 15, color: COLORS.DANGER, lineHeight: 1.7, margin: 0 }}>{errorMsg}</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -135,55 +153,73 @@ export function ScanScreen() {
     )
   }
 
-  return (
-    <Screen title="Save to Wardrobe" subtitle="Name this item">
-      {previewUrl && <img src={previewUrl} alt="Clothing item to save" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 16, maxHeight: 280, objectFit: 'cover', border: `2px solid ${COLORS.BORDER}` }} />}
+  // ── Naming & Save ──
+  const displayDesc = descMode === 'long'
+    ? (scanResult?.long_description || scanResult?.short_description || '')
+    : (scanResult?.short_description || '')
 
-      {scanResult?.short_description && (
-        <div style={{ border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: 16, marginBottom: 16, background: COLORS.SURFACE }}>
-          <p style={{ fontSize: 15, color: COLORS.TEXT, lineHeight: 1.7, margin: 0 }}>{scanResult.short_description}</p>
+  return (
+    <Screen title="Save to Wardrobe" subtitle="Review and name this item">
+      {previewUrl && <img src={previewUrl} alt="Clothing item to save" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 14, maxHeight: 260, objectFit: 'cover', border: `2px solid ${COLORS.BORDER}` }} />}
+
+      {/* Description card with toggle */}
+      {(scanResult?.short_description || scanResult?.long_description) && (
+        <div style={{ border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, marginBottom: 14, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', borderBottom: `2px solid ${COLORS.BORDER}` }}>
+            {['short', 'long'].map((mode) => (
+              <button key={mode} onClick={() => {
+                setDescMode(mode)
+                speak(mode === 'long'
+                  ? (scanResult?.long_description || scanResult?.short_description || '')
+                  : (scanResult?.short_description || ''))
+              }}
+                style={{
+                  flex: 1, padding: '10px 0',
+                  background: descMode === mode ? COLORS.SURFACE_INVERSE : COLORS.SURFACE,
+                  color: descMode === mode ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT_MUTED,
+                  border: 'none', borderRight: mode === 'short' ? `2px solid ${COLORS.BORDER}` : 'none',
+                  fontSize: 11, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase',
+                  cursor: 'pointer', borderRadius: 0,
+                }}>
+                {mode === 'short' ? 'Short' : 'Full Description'}
+              </button>
+            ))}
+          </div>
+          <div style={{ padding: 14, background: COLORS.SURFACE }}>
+            <p style={{ fontSize: 15, color: COLORS.TEXT, lineHeight: 1.75, margin: 0 }}>{displayDesc}</p>
+          </div>
+          <button onClick={toggleDesc} aria-label="Read description aloud"
+            style={{ width: '100%', padding: '10px 0', background: 'transparent', border: 'none', borderTop: `2px solid ${COLORS.BORDER}`, color: COLORS.ACCENT, fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', borderRadius: 0 }}>
+            🔊 Read Aloud
+          </button>
         </div>
       )}
 
-      <div style={{ marginBottom: 20 }}>
-        <label htmlFor="item-name" style={{ fontSize: 11, fontWeight: 700, color: COLORS.TEXT_MUTED, display: 'block', marginBottom: 8, letterSpacing: 1.2, textTransform: 'uppercase' }}>
-          Item Name
-        </label>
-        <input
-          id="item-name" ref={nameInputRef} type="text"
-          value={customName} onChange={(e) => setCustomName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          placeholder={scanResult?.name || scanResult?.suggested_name || 'e.g. Navy Blue T-Shirt'}
-          style={{
-            width: '100%', boxSizing: 'border-box',
-            background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`,
-            borderRadius: COLORS.RADIUS, padding: '14px 16px',
-            fontSize: 16, color: COLORS.TEXT, outline: 'none',
-            marginBottom: 14, fontFamily: 'var(--font-ui)',
-          }}
-          onFocus={(e) => e.target.style.borderColor = COLORS.ACCENT}
-          onBlur={(e) => e.target.style.borderColor = COLORS.BORDER}
-        />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <BigButton label="Save to Wardrobe" hint={`Save as: ${customName.trim() || 'Clothing Item'}`} icon="✓" variant="primary" onClick={handleSave} />
-          <BigButton label="Retake Photo" hint="Discard and take a new photo" icon="📸" onClick={reset} />
-        </div>
+      <label htmlFor="item-name" style={{ fontSize: 11, fontWeight: 700, color: COLORS.TEXT_MUTED, display: 'block', marginBottom: 8, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+        Item Name
+      </label>
+      <input
+        id="item-name" ref={nameInputRef} type="text"
+        value={customName} onChange={(e) => setCustomName(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+        placeholder={scanResult?.suggested_name || 'e.g. Navy Blue T-Shirt'}
+        style={{ width: '100%', boxSizing: 'border-box', background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: '14px 16px', fontSize: 16, color: COLORS.TEXT, outline: 'none', marginBottom: 14, fontFamily: 'var(--font-ui)' }}
+        onFocus={(e) => e.target.style.borderColor = COLORS.ACCENT}
+        onBlur={(e) => e.target.style.borderColor = COLORS.BORDER}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <BigButton label="Save to Wardrobe" hint={`Save as: ${customName.trim() || 'Clothing Item'}`} icon="✓" variant="primary" onClick={handleSave} />
+        <BigButton label="Retake Photo" hint="Discard and take a new photo" icon="📸" onClick={reset} />
       </div>
     </Screen>
   )
 }
 
-function Spinner() {
+function LoadingBars() {
   return (
     <div style={{ display: 'flex', gap: 5, alignItems: 'center', height: 40 }}>
       {[0,1,2,3,4].map(i => (
-        <span key={i} style={{
-          display: 'block', width: 6, background: COLORS.ACCENT,
-          borderRadius: 0,
-          animation: `sbar 800ms ease-in-out infinite`,
-          animationDelay: `${i * 100}ms`,
-          height: '100%',
-        }} />
+        <span key={i} style={{ display: 'block', width: 6, background: COLORS.ACCENT, borderRadius: 0, animation: `sbar 800ms ease-in-out infinite`, animationDelay: `${i * 100}ms`, height: '100%' }} />
       ))}
       <style>{`@keyframes sbar { 0%,100%{transform:scaleY(0.3)} 50%{transform:scaleY(1)} }`}</style>
     </div>

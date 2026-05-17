@@ -60,20 +60,20 @@ QUICK_SCAN_SCHEMA = {
     "properties": {
         "suggested_name": {"type": "string"},
         "category": {"type": "string"},
-        "description": {"type": "string"},
         "color": {"type": "string"},
+        "short_description": {"type": "string"},
+        "long_description": {"type": "string"},
     },
-    "required": ["suggested_name", "category", "description", "color"],
+    "required": ["suggested_name", "category", "color", "short_description", "long_description"],
 }
 
 
 @router.post("/quick-scan", response_model=QuickScanResponse)
 async def quick_scan(image: UploadFile = File(...)):
-    import io, numpy as np
+    import io
     from PIL import Image
 
     raw = await image.read()
-    # Quick scan skips the t-shirt gate — just identify whatever is shown
     img = Image.open(io.BytesIO(raw)).convert("RGB")
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
@@ -82,15 +82,25 @@ async def quick_scan(image: UploadFile = File(...)):
         model=GEMINI_MODEL,
         contents=[
             types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
-            "Identify the clothing item. Return JSON with suggested_name, category, description (one sentence), and color.",
+            (
+                "Identify the clothing item in this image. Return JSON with:\n"
+                "- suggested_name: short item name (e.g. 'Navy Graphic Tee')\n"
+                "- category: one of tops/bottoms/outerwear/shoes/accessories/other\n"
+                "- color: primary color description\n"
+                "- short_description: one sentence, max 15 words, describing what you see (fabric, color, print)\n"
+                "- long_description: 3-4 sentences covering fabric feel, cut/fit, graphic/print details if any, "
+                "and what occasions or styles it suits. Concrete and tactile — no vague words like 'nice' or 'great'."
+            ),
         ],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=QUICK_SCAN_SCHEMA,
-            temperature=0.2,
+            temperature=0.3,
         ),
     )
     data = json.loads(response.text)
+    # backward compat field
+    data["description"] = data.get("short_description", "")
     return QuickScanResponse(**data)
 
 
@@ -104,17 +114,132 @@ async def outfit_suggestion(
     occasion: Optional[str] = Form(""),
     mode: Optional[str] = Form("general"),
 ):
-    prompt = (
-        f"Suggest 2-3 outfit combinations. Occasion: {occasion or 'casual'}. "
-        f"Available items: {wardrobe_items or 'general wardrobe'}. "
-        "Keep suggestions practical and specific. Each sentence under 15 words."
-    )
+    has_wardrobe = bool(wardrobe_items and wardrobe_items.strip())
+
+    if has_wardrobe:
+        prompt = (
+            f"You are a personal stylist. The user wants an outfit for: {occasion or 'casual'}.\n"
+            f"Their wardrobe:\n{wardrobe_items}\n\n"
+            "Suggest a specific outfit using items from their wardrobe. "
+            "Name the exact items. Explain why they work together — color, texture, occasion fit. "
+            "2-3 short sentences per point. No markdown. No bullet lists."
+        )
+    else:
+        prompt = (
+            f"You are a personal stylist. The user wants outfit ideas for: {occasion or 'casual'}.\n"
+            "Give 2-3 general outfit ideas with specific garment types, colors, and fabrics. "
+            "Keep it practical and concrete — no vague terms like 'nice' or 'stylish'. "
+            "2-3 short sentences per idea. No markdown."
+        )
+
     response = _gemini().models.generate_content(
         model=GEMINI_MODEL,
         contents=prompt,
         config=types.GenerateContentConfig(temperature=0.7),
     )
     return {"suggestion": response.text}
+
+
+# ---------------------------------------------------------------------------
+# Shopping analyze — wardrobe-aware item verdict (Gemini vision)
+# ---------------------------------------------------------------------------
+
+SHOPPING_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "item_description": {"type": "string"},
+        "wardrobe_match":   {"type": "string"},
+        "buy_verdict":      {"type": "string"},
+        "suitable_occasions": {"type": "array", "items": {"type": "string"}},
+        "top_archetypes":   {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["item_description", "wardrobe_match", "buy_verdict", "suitable_occasions", "top_archetypes"],
+}
+
+
+@router.post("/shopping-analyze")
+async def shopping_analyze(
+    image: UploadFile = File(...),
+    wardrobe: Optional[str] = Form(""),
+):
+    import io
+    from PIL import Image as PILImage
+
+    raw = await image.read()
+    img = PILImage.open(io.BytesIO(raw)).convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=92)
+
+    has_wardrobe = bool(wardrobe and wardrobe.strip() and wardrobe.strip() not in ("[]", ""))
+
+    if has_wardrobe:
+        wardrobe_section = f"User's saved wardrobe:\n{wardrobe}"
+        match_instruction = (
+            "Tell the user which specific wardrobe items this pairs well with and which it would clash with. "
+            "Name the items. If nothing pairs, say so honestly."
+        )
+    else:
+        wardrobe_section = "The user has no saved wardrobe items yet."
+        match_instruction = (
+            "Give a standalone style and fit assessment. "
+            "Describe how this item would look and what it generally pairs well with."
+        )
+
+    prompt = (
+        "You are RizzVision in shopping mode. Your response will be read aloud.\n"
+        "Be concise but specific — 1-2 sentences per field. No markdown. No bullet lists.\n"
+        "Use concrete tactile language. Never say 'looks good' — say WHY.\n\n"
+        f"{wardrobe_section}\n\n"
+        "Return JSON with:\n"
+        "- item_description: what you see (garment type, color, fabric/texture, cut)\n"
+        f"- wardrobe_match: {match_instruction}\n"
+        "- buy_verdict: one sentence — is it worth buying for their style?\n"
+        "- suitable_occasions: 2-3 occasion strings (e.g. 'casual', 'office', 'evening out')\n"
+        "- top_archetypes: 1-2 style archetype strings (e.g. 'minimalist', 'streetwear', 'classic')"
+    )
+
+    response = _gemini().models.generate_content(
+        model=GEMINI_MODEL,
+        contents=[
+            types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
+            prompt,
+        ],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=SHOPPING_SCHEMA,
+            temperature=0.4,
+        ),
+    )
+
+    try:
+        data = json.loads(response.text)
+    except Exception:
+        data = {
+            "item_description": "I can see a clothing item.",
+            "wardrobe_match": "Unable to assess compatibility right now.",
+            "buy_verdict": "Try again for a full assessment.",
+            "suitable_occasions": [],
+            "top_archetypes": [],
+        }
+
+    segments = []
+    if data.get("item_description"):
+        segments.append({"id": "item",     "text": data["item_description"]})
+    if data.get("wardrobe_match"):
+        segments.append({"id": "match",    "text": data["wardrobe_match"]})
+    if data.get("buy_verdict"):
+        segments.append({"id": "verdict",  "text": data["buy_verdict"]})
+    if data.get("suitable_occasions"):
+        segments.append({"id": "occasions","text": "Best for: " + ", ".join(data["suitable_occasions"]) + "."})
+    if data.get("top_archetypes"):
+        segments.append({"id": "archetypes","text": "Style: " + " and ".join(data["top_archetypes"]) + "."})
+
+    return {
+        "speech_segments": segments,
+        "has_wardrobe": has_wardrobe,
+        "suitable_occasions": data.get("suitable_occasions", []),
+        "top_archetypes": data.get("top_archetypes", []),
+    }
 
 
 # ---------------------------------------------------------------------------

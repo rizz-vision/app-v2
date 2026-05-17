@@ -8,7 +8,7 @@ import { useWardrobe } from '../contexts/WardrobeContext.jsx'
 import { getOutfitSuggestion } from '../services/api.js'
 import { OCCASIONS, SCREENS, COLORS, RESPONSES, DESC_MODES } from '../utils/constants.js'
 
-const MIN_WARDROBE = 5
+const MIN_WARDROBE = 8
 
 export function OutfitScreen() {
   const { navigate, navParams, descMode, toggleDescMode } = useApp()
@@ -18,6 +18,7 @@ export function OutfitScreen() {
   const [phase, setPhase] = useState('occasion')
   const [occasion, setOccasion] = useState(null)
   const [result, setResult] = useState('')
+  const [usedWardrobe, setUsedWardrobe] = useState(false)
 
   const anchorItem = navParams?.anchorItem || null
   const canUseWardrobe = items.length >= MIN_WARDROBE
@@ -32,10 +33,14 @@ export function OutfitScreen() {
     setPhase('loading')
     speak(RESPONSES.generating)
     const occasionLabel = OCCASIONS.find((o) => o.id === occasion)?.label || occasion
-    const wardrobeText = mode === 'general' ? '' : items.map((i) => `${i.name} (${i.category}): ${i.description || ''}`).join('\n')
+    // Only pass wardrobe if user has enough items AND mode is wardrobe
+    const wardrobeText = (mode === 'wardrobe' && items.length >= MIN_WARDROBE)
+      ? items.map((i) => `${i.name} (${i.category}): ${i.description || ''}`).join('\n')
+      : ''
     try {
       const data = await getOutfitSuggestion({ wardrobeItems: wardrobeText, occasion: occasionLabel, mode })
       const text = data.suggestion || data.response || data.text || ''
+      setUsedWardrobe(wardrobeText.length > 0)
       setResult(text); setPhase('result'); speak(text)
     } catch {
       speak(RESPONSES.error); setPhase('occasion')
@@ -46,7 +51,7 @@ export function OutfitScreen() {
     if (!occasion) return
     if (canUseWardrobe) {
       setPhase('mode')
-      speak('Would you like suggestions based on your wardrobe, or general advice?')
+      speak('You have enough wardrobe items for personalised suggestions. Would you like to use your wardrobe or get general advice?')
     } else {
       generateOutfit('general')
     }
@@ -118,7 +123,7 @@ export function OutfitScreen() {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 16 }}>
           {[
-            { mode: 'wardrobe', label: 'Based on My Wardrobe', desc: `Pairs items from your ${items.length} saved pieces.` },
+            { mode: 'wardrobe', label: 'Based on My Wardrobe', desc: `Uses your ${items.length} saved pieces to build a specific look.` },
             { mode: 'general',  label: 'General Advice',       desc: 'Broad styling tips for the occasion.' },
           ].map(({ mode, label, desc }) => (
             <button key={mode} onClick={() => generateOutfit(mode)}
@@ -160,6 +165,14 @@ export function OutfitScreen() {
 
   return (
     <Screen title="Your Outfit" subtitle={`For ${occasionLabel}`}>
+      {!usedWardrobe && items.length < MIN_WARDROBE && (
+        <div style={{ border: `2px solid ${COLORS.ACCENT}`, borderRadius: COLORS.RADIUS, padding: '10px 14px', marginBottom: 14, background: COLORS.SURFACE, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
+          <p style={{ fontSize: 13, color: COLORS.ACCENT, lineHeight: 1.5, margin: 0 }}>
+            General advice — scan {MIN_WARDROBE - items.length} more item{MIN_WARDROBE - items.length !== 1 ? 's' : ''} to unlock personalised wardrobe suggestions.
+          </p>
+        </div>
+      )}
       <div role="region" aria-label="Outfit suggestion"
         style={{ border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: 18, marginBottom: 16, background: COLORS.SURFACE }}>
         <p style={{ fontSize: 16, color: COLORS.TEXT, lineHeight: 1.8, margin: 0 }}>{displayResult}</p>
@@ -172,7 +185,7 @@ export function OutfitScreen() {
           onClick={toggleDescMode}
         />
         <BigButton label="Read Again" icon="🔊" onClick={() => speak(result)} />
-        <BigButton label="Try Different Options" icon="🔄" onClick={() => { setPhase('occasion'); setOccasion(null); setResult('') }} />
+        <BigButton label="Try Different Options" icon="🔄" onClick={() => { setPhase('occasion'); setOccasion(null); setResult(''); setUsedWardrobe(false) }} />
       </div>
 
       {outfitChatContext && <ContextChat context={outfitChatContext} feature="outfit" speak={speak} />}

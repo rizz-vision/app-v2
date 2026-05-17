@@ -42,7 +42,9 @@ class AnalyzeResponse(BaseModel):
 class QuickScanResponse(BaseModel):
     suggested_name: str
     category: str
-    description: str
+    description: str          # kept for backward compat
+    short_description: str    # 1 sentence for quick display/TTS
+    long_description: str     # 3-4 sentences stored in wardrobe
     color: str
 
 

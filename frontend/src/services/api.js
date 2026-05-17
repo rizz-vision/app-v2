@@ -34,6 +34,13 @@ export async function getOutfitSuggestion({ wardrobeItems = '', occasion = '', m
   return post('/outfit-suggestion', fd)
 }
 
+export async function shoppingAnalyze(imageBlob, wardrobe = []) {
+  const fd = new FormData()
+  fd.append('image', imageBlob, 'photo.jpg')
+  fd.append('wardrobe', wardrobe.length ? wardrobe.map((i) => `${i.name} (${i.category}): ${i.description || ''}`).join('\n') : '')
+  return post('/shopping-analyze', fd)
+}
+
 export async function contextChat({ question, context = '', feature = 'scan' }) {
   const fd = new FormData()
   fd.append('question', question)

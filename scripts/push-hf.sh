@@ -15,6 +15,7 @@ echo "→ Creating deploy worktree…"
 git -C "$REPO_ROOT" worktree add --detach "$WORKTREE_DIR"
 
 cd "$WORKTREE_DIR"
+git branch -D hf-deploy 2>/dev/null || true
 git checkout --orphan hf-deploy
 git rm -rf . --quiet
 

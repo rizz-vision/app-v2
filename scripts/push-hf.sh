@@ -23,8 +23,8 @@ echo "→ Copying backend/…"
 cp -r "$REPO_ROOT/backend/." .
 
 echo "→ Configuring Git LFS…"
-git lfs install --local --silent
-git lfs track "model/*.keras" --silent
+git lfs install --local
+git lfs track "model/*.keras"
 
 echo "→ Staging…"
 git add .

@@ -10,18 +10,24 @@ export const SCREENS = {
 }
 
 export const COLORS = {
-  BG: '#0A0A0F',
-  CARD: 'rgba(255,255,255,0.04)',
-  BORDER: 'rgba(255,255,255,0.08)',
-  ACCENT: '#7C3AED',
-  ACCENT_LIGHT: '#A78BFA',
-  ACCENT_DIM: 'rgba(124,58,237,0.2)',
-  TEXT: '#F0F0F0',
-  TEXT_MUTED: '#9CA3AF',
-  TEXT_DIM: '#6B7280',
-  DANGER: '#EF4444',
-  SUCCESS: '#10B981',
-  SURFACE: 'rgba(255,255,255,0.06)',
+  BG: '#0A0A08',
+  BG_RAISED: '#141412',
+  SURFACE: '#141412',
+  SURFACE_INVERSE: '#F7F5EF',
+  BORDER: '#F7F5EF',
+  ACCENT: '#7AA0FF',
+  ACCENT_SOFT: 'rgba(122,160,255,0.18)',
+  ACCENT_STRONG: '#A7C0FF',
+  // keep legacy aliases used in screens
+  ACCENT_LIGHT: '#A7C0FF',
+  ACCENT_DIM: 'rgba(122,160,255,0.18)',
+  TEXT: '#F7F5EF',
+  TEXT_MUTED: '#C2BEB6',
+  TEXT_DIM: '#8A8780',
+  TEXT_ON_ACCENT: '#0A0A08',
+  DANGER: '#FF7777',
+  SUCCESS: '#5EE3A1',
+  RADIUS: 4,
 }
 
 export const VOICE_LOCALE = 'en-IN'

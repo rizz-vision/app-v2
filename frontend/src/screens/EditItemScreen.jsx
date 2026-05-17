@@ -61,7 +61,7 @@ export function EditItemScreen() {
           value={formValues[key]}
           onChange={(e) => setFormValues((v) => ({ ...v, [key]: e.target.value }))}
           rows={3}
-          style={{ width: '100%', boxSizing: 'border-box', background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`, borderRadius: 14, padding: '14px 16px', fontSize: 16, color: COLORS.TEXT, resize: 'vertical', outline: 'none' }}
+          style={{ width: '100%', boxSizing: 'border-box', background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: '14px 16px', fontSize: 16, color: COLORS.TEXT, resize: 'vertical', outline: 'none', fontFamily: 'var(--font-ui)' }}
           onFocus={(e) => { e.target.style.borderColor = COLORS.ACCENT; speak(`${label}. Current: ${formValues[key] || 'empty'}`) }}
           onBlur={(e) => (e.target.style.borderColor = COLORS.BORDER)}
         />
@@ -71,7 +71,7 @@ export function EditItemScreen() {
           type="text"
           value={formValues[key]}
           onChange={(e) => setFormValues((v) => ({ ...v, [key]: e.target.value }))}
-          style={{ width: '100%', boxSizing: 'border-box', background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`, borderRadius: 14, padding: '14px 16px', fontSize: 16, color: COLORS.TEXT, outline: 'none' }}
+          style={{ width: '100%', boxSizing: 'border-box', background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: '14px 16px', fontSize: 16, color: COLORS.TEXT, outline: 'none', fontFamily: 'var(--font-ui)' }}
           onFocus={(e) => { e.target.style.borderColor = COLORS.ACCENT; speak(`${label}. Current: ${formValues[key] || 'empty'}`) }}
           onBlur={(e) => (e.target.style.borderColor = COLORS.BORDER)}
         />
@@ -91,7 +91,7 @@ export function EditItemScreen() {
             return (
               <button key={cat.id} onClick={() => { setFormValues((v) => ({ ...v, category: cat.id })); speak(`Category: ${cat.label}`) }}
                 aria-pressed={active}
-                style={{ background: active ? COLORS.ACCENT : COLORS.SURFACE, color: active ? '#fff' : COLORS.TEXT, border: `2px solid ${active ? COLORS.ACCENT : COLORS.BORDER}`, borderRadius: 20, padding: '8px 16px', fontSize: 14, fontWeight: active ? 700 : 500, cursor: 'pointer', minHeight: 40 }}>
+                style={{ background: active ? COLORS.SURFACE_INVERSE : COLORS.SURFACE, color: active ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT, border: `2px solid ${active ? COLORS.SURFACE_INVERSE : COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: '8px 16px', fontSize: 14, fontWeight: active ? 700 : 500, cursor: 'pointer', minHeight: 40 }}>
                 {cat.icon} {cat.label}
               </button>
             )

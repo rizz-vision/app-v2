@@ -5,61 +5,79 @@ export function WardrobeCard({ item, onTap, onEdit, onDelete }) {
     || `${item.colorDescription || item.color || ''} ${item.pattern || ''} ${item.type || item.category || ''}`.trim()
 
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'center', animation: 'fadeUp 0.25s ease' }}>
+    <div style={{ display: 'flex', gap: 0, alignItems: 'stretch', border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS }}>
       <button
         onClick={() => onTap(item)}
         aria-label={`${item.name}. ${subtitle}. Tap to hear description.`}
         style={{
           flex: 1,
-          minHeight: 84,
+          minHeight: 72,
           background: COLORS.SURFACE,
-          border: `2px solid ${COLORS.BORDER}`,
-          borderRadius: 18,
+          border: 'none',
+          borderRadius: 0,
           color: COLORS.TEXT,
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: 600,
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          padding: '14px 20px',
+          gap: 14,
+          padding: '12px 16px',
           textAlign: 'left',
           cursor: 'pointer',
-          WebkitTapHighlightColor: 'rgba(124,58,237,0.15)',
+          WebkitTapHighlightColor: 'transparent',
         }}
       >
         {item.imageUrl ? (
-          <img src={item.imageUrl} alt="" aria-hidden style={{ width: 52, height: 52, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+          <img src={item.imageUrl} alt="" aria-hidden style={{ width: 48, height: 48, borderRadius: 0, objectFit: 'cover', flexShrink: 0, border: `1px solid ${COLORS.TEXT_DIM}` }} />
         ) : (
-          <div aria-hidden style={{ width: 52, height: 52, borderRadius: 10, flexShrink: 0, background: COLORS.BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+          <div aria-hidden style={{
+            width: 48, height: 48, flexShrink: 0,
+            background: COLORS.BG,
+            border: `1px solid ${COLORS.TEXT_DIM}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22,
+          }}>
             👕
           </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700 }}>{item.name}</div>
-          <div style={{ fontSize: 13, color: COLORS.TEXT_MUTED, marginTop: 4, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{item.name}</div>
+          <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginTop: 3, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {subtitle}
           </div>
         </div>
-        <span aria-hidden style={{ fontSize: 22, color: COLORS.TEXT_MUTED }}>🔊</span>
+        <span aria-hidden style={{ fontSize: 16, color: COLORS.ACCENT, flexShrink: 0 }}>▶</span>
       </button>
 
       {(onEdit || onDelete) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', borderLeft: `2px solid ${COLORS.BORDER}`, flexShrink: 0 }}>
           {onEdit && (
             <button onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`}
-              style={{ width: 48, height: 48, borderRadius: 14, background: 'transparent', border: `2px solid ${COLORS.ACCENT}`, color: COLORS.ACCENT_LIGHT, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              style={{
+                flex: 1, width: 48,
+                background: 'transparent', border: 'none',
+                borderBottom: onDelete ? `2px solid ${COLORS.BORDER}` : 'none',
+                color: COLORS.ACCENT, fontSize: 16, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: 0,
+              }}>
               ✎
             </button>
           )}
           {onDelete && (
             <button onClick={() => onDelete(item.id)} aria-label={`Delete ${item.name}`}
-              style={{ width: 48, height: 48, borderRadius: 14, background: 'transparent', border: `2px solid ${COLORS.DANGER}`, color: COLORS.DANGER, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              style={{
+                flex: 1, width: 48,
+                background: 'transparent', border: 'none',
+                color: COLORS.DANGER, fontSize: 18, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: 0,
+              }}>
               ✕
             </button>
           )}
         </div>
       )}
-      <style>{`@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }`}</style>
     </div>
   )
 }

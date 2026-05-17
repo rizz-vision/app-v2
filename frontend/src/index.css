@@ -5,23 +5,25 @@
 }
 
 :root {
-  --bg: #0A0A0F;
-  --bg-card: rgba(255, 255, 255, 0.04);
-  --bg-card-hover: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.08);
-  --accent: #7C3AED;
-  --accent-light: #A78BFA;
-  --accent-dim: rgba(124, 58, 237, 0.2);
-  --text: #F0F0F0;
-  --text-muted: #9CA3AF;
-  --text-dim: #6B7280;
-  --danger: #EF4444;
-  --success: #10B981;
-  --font-ui: 'Inter', system-ui, sans-serif;
-  --font-body: 'Atkinson Hyperlegible', sans-serif;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --transition: 200ms ease;
+  --bg: #0A0A08;
+  --bg-raised: #141412;
+  --surface: #141412;
+  --surface-inverse: #F7F5EF;
+  --border: #F7F5EF;
+  --accent: #7AA0FF;
+  --accent-soft: rgba(122,160,255,0.18);
+  --accent-strong: #A7C0FF;
+  --text: #F7F5EF;
+  --text-muted: #C2BEB6;
+  --text-dim: #8A8780;
+  --text-on-accent: #0A0A08;
+  --danger: #FF7777;
+  --success: #5EE3A1;
+  --font-ui: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  --radius: 4px;
+  --radius-sm: 4px;
+  --transition: 160ms cubic-bezier(.2,.7,.25,1);
   --min-touch: 48px;
 }
 
@@ -35,7 +37,6 @@ html, body, #root {
   overflow: hidden;
 }
 
-/* Mobile safe areas */
 .screen {
   padding-top: env(safe-area-inset-top);
 }
@@ -51,17 +52,13 @@ button {
 }
 
 button:focus-visible {
-  outline: 2px solid var(--accent-light);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
 }
 
-.glass {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: var(--radius);
+input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
 }
 
 .screen {
@@ -79,11 +76,3 @@ button:focus-visible {
 }
 
 .scroll::-webkit-scrollbar { display: none; }
-
-/* Accent gradient for headings */
-.gradient-text {
-  background: linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}

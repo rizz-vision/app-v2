@@ -1,17 +1,20 @@
 import { COLORS } from '../utils/constants.js'
 
 export function BigButton({ label, hint, icon, onClick, variant = 'default', disabled, type = 'button', style: extraStyle }) {
-  const bg = variant === 'primary' ? COLORS.ACCENT
-           : variant === 'success' ? COLORS.SUCCESS
-           : variant === 'danger'  ? COLORS.DANGER
-           : COLORS.SURFACE
+  const isPrimary = variant === 'primary'
+  const isSuccess = variant === 'success'
+  const isDanger  = variant === 'danger'
 
-  const fg = variant === 'primary' ? '#fff'
-           : variant === 'success' ? '#fff'
-           : variant === 'danger'  ? '#fff'
-           : COLORS.TEXT
-
-  const border = variant === 'default' ? COLORS.BORDER : bg
+  let bg, fg, borderColor
+  if (isPrimary) {
+    bg = COLORS.SURFACE_INVERSE; fg = COLORS.TEXT_ON_ACCENT; borderColor = COLORS.SURFACE_INVERSE
+  } else if (isSuccess) {
+    bg = COLORS.SUCCESS; fg = COLORS.TEXT_ON_ACCENT; borderColor = COLORS.SUCCESS
+  } else if (isDanger) {
+    bg = 'transparent'; fg = COLORS.DANGER; borderColor = COLORS.DANGER
+  } else {
+    bg = 'transparent'; fg = COLORS.TEXT; borderColor = COLORS.BORDER
+  }
 
   return (
     <button
@@ -22,28 +25,39 @@ export function BigButton({ label, hint, icon, onClick, variant = 'default', dis
       aria-disabled={disabled}
       style={{
         width: '100%',
-        minHeight: 88,
-        background: disabled ? 'rgba(255,255,255,0.03)' : bg,
-        border: `2px solid ${disabled ? COLORS.BORDER : border}`,
-        borderRadius: 20,
+        minHeight: 64,
+        background: disabled ? COLORS.SURFACE : bg,
+        border: `2px solid ${disabled ? COLORS.TEXT_DIM : borderColor}`,
+        borderRadius: COLORS.RADIUS,
         color: disabled ? COLORS.TEXT_DIM : fg,
-        fontSize: 20,
-        fontWeight: 800,
-        letterSpacing: '0.02em',
+        fontSize: 17,
+        fontWeight: 700,
+        letterSpacing: -0.2,
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex',
         alignItems: 'center',
-        gap: 18,
-        padding: '0 28px',
+        gap: 16,
+        padding: '0 20px',
         textAlign: 'left',
-        transition: 'opacity 0.15s',
+        transition: `opacity ${COLORS.RADIUS}ms`,
         opacity: disabled ? 0.45 : 1,
-        WebkitTapHighlightColor: 'rgba(124,58,237,0.2)',
+        WebkitTapHighlightColor: 'transparent',
         ...extraStyle,
       }}
     >
-      {icon && <span aria-hidden style={{ fontSize: 34, flexShrink: 0 }}>{icon}</span>}
+      {icon && (
+        <div aria-hidden style={{
+          width: 42, height: 42, minWidth: 42,
+          background: disabled ? COLORS.TEXT_DIM : (isPrimary ? COLORS.TEXT_ON_ACCENT : COLORS.BORDER),
+          color: disabled ? COLORS.SURFACE : (isPrimary ? COLORS.SURFACE_INVERSE : COLORS.BG),
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 20, borderRadius: 0, flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+      )}
       <span style={{ flex: 1 }}>{label}</span>
+      <span aria-hidden style={{ fontSize: 18, color: disabled ? COLORS.TEXT_DIM : 'inherit', opacity: 0.6 }}>›</span>
     </button>
   )
 }

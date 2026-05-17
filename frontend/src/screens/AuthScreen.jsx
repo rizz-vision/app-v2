@@ -9,12 +9,13 @@ const inputStyle = {
   minHeight: 56,
   background: COLORS.SURFACE,
   border: `2px solid ${COLORS.BORDER}`,
-  borderRadius: 14,
+  borderRadius: COLORS.RADIUS,
   color: COLORS.TEXT,
-  fontSize: 18,
+  fontSize: 17,
   padding: '14px 20px',
   boxSizing: 'border-box',
   outline: 'none',
+  fontFamily: 'var(--font-ui)',
 }
 
 export function AuthScreen() {
@@ -74,7 +75,7 @@ export function AuthScreen() {
       <Screen title={isSignUp ? 'Create Account' : 'Welcome Back'} subtitle={isSignUp ? 'Sign up to save your wardrobe.' : 'Sign in to access your wardrobe.'} back={false}>
 
         <button type="button" onClick={handleGoogle} disabled={isBusy} aria-label="Sign in with Google"
-          style={{ width: '100%', minHeight: 56, borderRadius: 14, border: `2px solid ${COLORS.BORDER}`, background: COLORS.SURFACE, color: COLORS.TEXT, fontSize: 17, fontWeight: 700, cursor: isBusy ? 'not-allowed' : 'pointer', opacity: isBusy ? 0.6 : 1 }}>
+          style={{ width: '100%', minHeight: 56, borderRadius: COLORS.RADIUS, border: `2px solid ${COLORS.BORDER}`, background: COLORS.SURFACE, color: COLORS.TEXT, fontSize: 17, fontWeight: 700, cursor: isBusy ? 'not-allowed' : 'pointer', opacity: isBusy ? 0.6 : 1, fontFamily: 'var(--font-ui)' }}>
           {googleSubmitting ? 'Redirecting to Google...' : 'Continue with Google'}
         </button>
 
@@ -99,7 +100,7 @@ export function AuthScreen() {
           </label>
 
           {error && (
-            <div role="alert" aria-live="assertive" style={{ background: 'rgba(239,68,68,0.12)', border: `1px solid ${COLORS.DANGER}`, borderRadius: 12, padding: '12px 16px', fontSize: 15, color: COLORS.DANGER }}>
+            <div role="alert" aria-live="assertive" style={{ border: `2px solid ${COLORS.DANGER}`, borderRadius: COLORS.RADIUS, padding: '12px 16px', fontSize: 15, color: COLORS.DANGER, background: COLORS.SURFACE }}>
               {error}
             </div>
           )}

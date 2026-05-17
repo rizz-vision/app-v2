@@ -2,23 +2,40 @@ import { useVoice } from '../contexts/VoiceContext.jsx'
 import { COLORS } from '../utils/constants.js'
 
 export function VoiceIndicator() {
-  const { listening } = useVoice()
+  const { isListening } = useVoice()
+  const label = isListening ? 'Listening' : 'Mic off'
+  const color = isListening ? COLORS.ACCENT : COLORS.TEXT_DIM
+
   return (
-    <div
-      aria-label={listening ? 'Listening' : 'Microphone off'}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 12, color: listening ? COLORS.ACCENT_LIGHT : COLORS.TEXT_DIM,
-      }}
-    >
+    <div role="status" aria-label={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18 }}>
+        {[0, 1, 2, 3, 4].map(i => (
+          <span key={i} style={{
+            display: 'block',
+            width: 3,
+            background: color,
+            borderRadius: 0,
+            animation: isListening ? `vi-bar 900ms ease-in-out infinite` : 'none',
+            animationDelay: `${i * 80}ms`,
+            height: isListening ? '100%' : 6,
+            transition: 'height 0.2s',
+          }} />
+        ))}
+      </div>
       <span style={{
-        width: 8, height: 8, borderRadius: '50%',
-        background: listening ? COLORS.ACCENT_LIGHT : COLORS.TEXT_DIM,
-        boxShadow: listening ? `0 0 8px ${COLORS.ACCENT_LIGHT}` : 'none',
-        animation: listening ? 'pulse 1.5s infinite' : 'none',
-      }} />
-      {listening ? 'Listening' : 'Mic off'}
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
+        fontFamily: 'var(--font-ui)',
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        color: isListening ? COLORS.TEXT : COLORS.TEXT_DIM,
+      }}>{label}</span>
+      <style>{`
+        @keyframes vi-bar {
+          0%,100% { height: 30% }
+          50% { height: 100% }
+        }
+      `}</style>
     </div>
   )
 }

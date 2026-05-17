@@ -1,87 +1,61 @@
+import { useEffect } from 'react'
+import { Screen } from '../components/Screen.jsx'
+import { BigButton } from '../components/BigButton.jsx'
+import { MicButton } from '../components/MicButton.jsx'
 import { useApp } from '../contexts/AppContext.jsx'
-import { useWardrobe } from '../contexts/WardrobeContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
-import { VoiceIndicator } from '../components/VoiceIndicator.jsx'
-import { SCREENS, COLORS, DESC_MODES } from '../utils/constants.js'
-
-const NAV_ITEMS = [
-  { screen: SCREENS.SCAN, label: 'Scan', icon: '◎', desc: 'Analyze a t-shirt' },
-  { screen: SCREENS.MIRROR, label: 'Mirror', icon: '⬡', desc: 'Full outfit check' },
-  { screen: SCREENS.WARDROBE, label: 'Wardrobe', icon: '▤', desc: 'Your saved items' },
-  { screen: SCREENS.OUTFIT, label: 'Outfits', icon: '✦', desc: 'Get suggestions' },
-  { screen: SCREENS.SHOPPING, label: 'Shopping', icon: '◈', desc: 'Check new items' },
-]
+import { useVoice } from '../contexts/VoiceContext.jsx'
+import { useWardrobe } from '../contexts/WardrobeContext.jsx'
+import { SCREENS, COLORS, RESPONSES } from '../utils/constants.js'
 
 export function HomeScreen() {
-  const { navigate, descMode, toggleDescMode } = useApp()
+  const { navigate } = useApp()
+  const { signOut } = useAuth()
+  const { speak, isListening, isThinking, toggleListening } = useVoice()
   const { items } = useWardrobe()
-  const { user, signOut } = useAuth()
+
+  useEffect(() => {
+    const t = setTimeout(() => speak(RESPONSES.welcome), 600)
+    return () => clearTimeout(t)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="screen" style={{ padding: 0 }}>
-      {/* Header */}
-      <div style={{ padding: '20px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 className="gradient-text" style={{ fontSize: 28, fontWeight: 700, letterSpacing: -0.5 }}>
-            Rizzvision
-          </h1>
-          {user && (
-            <p style={{ fontSize: 12, color: COLORS.TEXT_DIM, marginTop: 2 }}>
-              {user.email?.split('@')[0]}
-            </p>
-          )}
-        </div>
-        <VoiceIndicator />
-      </div>
+    <Screen title="Rizzvision" subtitle="Your AI style assistant." back={false}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, marginTop: 8 }}>
 
-      <div className="scroll" style={{ paddingTop: 20 }}>
-        {/* Stats bar */}
-        <div className="glass" style={{ padding: '14px 18px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <p style={{ fontSize: 22, fontWeight: 700, color: COLORS.ACCENT_LIGHT }}>{items.length}</p>
-            <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED }}>items saved</p>
+        <MicButton isListening={isListening} onClick={toggleListening} size={120} />
+
+        <div role="status" aria-live="polite" aria-atomic="true"
+          style={{ fontSize: 14, color: COLORS.TEXT_MUTED, textAlign: 'center', marginBottom: 4 }}>
+          {isThinking ? 'Speaking...' : isListening ? 'Listening — say "scan", "wardrobe", "outfits"...' : 'Tap to start voice commands'}
+        </div>
+
+        {items.length > 0 && (
+          <div style={{ background: COLORS.ACCENT_DIM, border: `1px solid rgba(124,58,237,0.3)`, borderRadius: 12, padding: '8px 18px', fontSize: 14, color: COLORS.ACCENT_LIGHT }}>
+            {items.length} item{items.length !== 1 ? 's' : ''} in your wardrobe
           </div>
-          <button
-            onClick={toggleDescMode}
-            style={{
-              padding: '8px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-              background: COLORS.ACCENT_DIM, color: COLORS.ACCENT_LIGHT, minHeight: 36,
-            }}
-          >
-            {descMode === DESC_MODES.SHORT ? 'Short desc' : 'Long desc'}
-          </button>
-        </div>
-
-        {/* Nav grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-          {NAV_ITEMS.map(({ screen, label, icon, desc }) => (
-            <button
-              key={screen}
-              className="glass"
-              onClick={() => navigate(screen)}
-              style={{
-                padding: '20px 16px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8,
-                background: COLORS.CARD, transition: 'background 200ms',
-                gridColumn: screen === SCREENS.SCAN ? '1 / -1' : undefined,
-              }}
-            >
-              <span style={{ fontSize: screen === SCREENS.SCAN ? 28 : 22, color: COLORS.ACCENT_LIGHT }}>{icon}</span>
-              <span style={{ fontWeight: 700, fontSize: screen === SCREENS.SCAN ? 18 : 15 }}>{label}</span>
-              <span style={{ fontSize: 12, color: COLORS.TEXT_MUTED }}>{desc}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Sign out */}
-        {user && (
-          <button
-            onClick={signOut}
-            style={{ width: '100%', padding: '12px 0', fontSize: 13, color: COLORS.TEXT_DIM, minHeight: 44 }}
-          >
-            Sign out
-          </button>
         )}
+
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <BigButton label="Scan T-Shirt" hint="Analyze a t-shirt and save it to your wardrobe" icon="📸" variant="primary" onClick={() => navigate(SCREENS.SCAN)} />
+          <BigButton label="Outfit Suggestions" hint="Get AI outfit ideas for any occasion" icon="👔" onClick={() => navigate(SCREENS.OUTFIT)} />
+          <BigButton label="My Wardrobe" hint="Browse and manage your saved items" icon="🗄️" onClick={() => navigate(SCREENS.WARDROBE)} />
+        </div>
+
+        <div style={{ width: '100%', display: 'flex', gap: 14 }}>
+          <div style={{ flex: 1 }}>
+            <BigButton label="Shopping" hint="Live wardrobe-aware shopping assistant" icon="🛍️" onClick={() => navigate(SCREENS.SHOPPING)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <BigButton label="Mirror" hint="Instant full-outfit feedback" icon="🪞" onClick={() => navigate(SCREENS.MIRROR)} />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 8 }}>
+          <BigButton label="Sign Out" hint="Sign out of your account" icon="→" variant="danger" onClick={signOut} />
+        </div>
+
       </div>
-    </div>
+    </Screen>
   )
 }

@@ -1,120 +1,189 @@
-import { useRef, useState, useCallback } from 'react'
-import { useApp } from '../contexts/AppContext.jsx'
-import { useWardrobe } from '../contexts/WardrobeContext.jsx'
-import { useSpeechOutput } from '../hooks/useSpeechOutput.jsx'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Screen } from '../components/Screen.jsx'
+import { BigButton } from '../components/BigButton.jsx'
 import { CameraCapture } from '../components/CameraCapture.jsx'
-import { analyzeImage } from '../services/api.js'
-import { COLORS, DESC_MODES } from '../utils/constants.js'
-import { announce } from '../components/LiveRegions.jsx'
-
-const STATE = { CAMERA: 'CAMERA', LOADING: 'LOADING', RESULT: 'RESULT', ERROR: 'ERROR' }
+import { useApp } from '../contexts/AppContext.jsx'
+import { useVoice } from '../contexts/VoiceContext.jsx'
+import { useWardrobe } from '../contexts/WardrobeContext.jsx'
+import { quickScan } from '../services/api.js'
+import { SCREENS, COLORS, RESPONSES, DESC_MODES } from '../utils/constants.js'
 
 export function ScanScreen() {
-  const { goBack, descMode } = useApp()
+  const { navigate, goBack, descMode } = useApp()
+  const { speak } = useVoice()
   const { addItem } = useWardrobe()
-  const { speakSegments, speak, stop } = useSpeechOutput()
-  const captureRef = useRef(null)
-  const [state, setState] = useState(STATE.CAMERA)
-  const [preview, setPreview] = useState(null)
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState('')
-  const [saved, setSaved] = useState(false)
+
+  const [phase, setPhase] = useState('camera') // camera | analyzing | naming | saving | error
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [errorMsg, setErrorMsg] = useState('')
+  const [scanResult, setScanResult] = useState(null)
+  const [customName, setCustomName] = useState('')
+  const capturedBlobRef = useRef(null)
+  const nameInputRef = useRef(null)
+
+  useEffect(() => {
+    if (phase === 'camera') speak(RESPONSES.scanReady)
+  }, [phase]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (phase === 'naming' && nameInputRef.current) nameInputRef.current.focus()
+  }, [phase])
 
   const handleCapture = useCallback(async (blob, dataUrl) => {
-    setPreview(dataUrl)
-    setState(STATE.LOADING)
-    announce('Analyzing your t-shirt...')
+    setPhase('analyzing')
+    setPreviewUrl(dataUrl)
+    capturedBlobRef.current = blob
+    speak('Identifying the item. One moment.')
+
     try {
-      const data = await analyzeImage(blob)
-      setResult(data)
-      setState(STATE.RESULT)
-      const segments = descMode === DESC_MODES.SHORT ? data.speech_segments.slice(0, 2) : data.speech_segments
-      speakSegments(segments)
-      announce(segments.map((s) => s.text).join(' '))
-    } catch (e) {
-      setError(e.message)
-      setState(STATE.ERROR)
-      speak(e.message)
-      announce(e.message, 'assertive')
+      const result = await quickScan(blob)
+      setScanResult(result)
+      setCustomName(result.name || result.suggested_name || '')
+      const desc = result.short_description || result.name || result.suggested_name || 'Item identified.'
+      speak(desc)
+      setPhase('naming')
+    } catch (err) {
+      const msg = err.message || 'Could not identify the item. Please try a clearer photo.'
+      setErrorMsg(msg)
+      speak(msg)
+      setPhase('error')
     }
-  }, [descMode, speakSegments, speak])
+  }, [speak])
+
+  const handleSave = useCallback(async () => {
+    if (!scanResult) return
+    const name = customName.trim() || scanResult.name || scanResult.suggested_name || 'Clothing Item'
+    setPhase('saving')
+
+    try {
+      await addItem({
+        name,
+        type: scanResult.category || 'tops',
+        category: scanResult.category || 'tops',
+        color: scanResult.color || '',
+        description: scanResult.short_description || '',
+      })
+      const msg = RESPONSES.saved(name)
+      speak(msg)
+      setTimeout(() => navigate(SCREENS.WARDROBE), 1200)
+    } catch {
+      speak(RESPONSES.error)
+      setPhase('naming')
+    }
+  }, [scanResult, customName, addItem, speak, navigate])
 
   const reset = useCallback(() => {
-    stop(); setResult(null); setError(''); setSaved(false); setPreview(null); setState(STATE.CAMERA)
-  }, [stop])
+    setScanResult(null); setPreviewUrl(null); setErrorMsg(''); setCustomName('')
+    capturedBlobRef.current = null; setPhase('camera')
+  }, [])
 
-  const saveToWardrobe = useCallback(async () => {
-    if (!result || saved) return
-    await addItem({ name: result.speech_segments[0]?.text?.split('.')[0] || 'T-shirt', description: result.wardrobe_description, category: 'top' })
-    setSaved(true)
-    speak('Saved to your wardrobe.')
-  }, [result, saved, addItem, speak])
+  const handleUpload = useCallback((e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result
+      const byteString = atob(dataUrl.split(',')[1])
+      const ab = new ArrayBuffer(byteString.length)
+      const ia = new Uint8Array(ab)
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i)
+      const blob = new Blob([ab], { type: 'image/jpeg' })
+      handleCapture(blob, dataUrl)
+    }
+    reader.readAsDataURL(file)
+  }, [handleCapture])
 
+  useEffect(() => {
+    const handler = (e) => {
+      const cmd = e.detail
+      if (cmd.type === 'SAVE_ITEM' && phase === 'naming') handleSave()
+      else if (cmd.type === 'DISCARD_ITEM') reset()
+    }
+    window.addEventListener('voiceCommand', handler)
+    return () => window.removeEventListener('voiceCommand', handler)
+  }, [phase, handleSave, reset])
+
+  // ── Camera ──────────────────────────────────────────────────────────────────
+  if (phase === 'camera') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <CameraCapture onCapture={handleCapture} aspectRatio="unset" />
+        <div style={{ position: 'absolute', bottom: 140, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+          <label aria-label="Upload a photo from gallery"
+            style={{ background: 'rgba(0,0,0,0.65)', border: '2px solid rgba(255,255,255,0.5)', borderRadius: 14, color: '#fff', fontSize: 14, fontWeight: 600, padding: '10px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span aria-hidden>🖼</span> Upload from Gallery
+            <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
+          </label>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Analyzing / Saving ──────────────────────────────────────────────────────
+  if (phase === 'analyzing' || phase === 'saving') {
+    const subtitle = phase === 'saving' ? 'Saving to your wardrobe.' : 'Identifying your item…'
+    return (
+      <Screen title={phase === 'saving' ? 'Saving…' : 'Identifying…'} subtitle={subtitle}>
+        {previewUrl && <img src={previewUrl} alt="" style={{ width: '100%', borderRadius: 16, marginBottom: 20, maxHeight: 320, objectFit: 'cover' }} />}
+        <div role="status" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 40, gap: 20 }}>
+          <div aria-hidden style={{ width: 56, height: 56, borderRadius: '50%', border: `4px solid ${COLORS.ACCENT}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <p aria-live="polite" style={{ color: COLORS.TEXT_MUTED, fontSize: 15, margin: 0 }}>{subtitle}</p>
+        </div>
+      </Screen>
+    )
+  }
+
+  // ── Error ───────────────────────────────────────────────────────────────────
+  if (phase === 'error') {
+    return (
+      <Screen title="Photo Issue" subtitle="Please retake the photo.">
+        {previewUrl && <img src={previewUrl} alt="" style={{ width: '100%', borderRadius: 16, marginBottom: 20, maxHeight: 280, objectFit: 'cover', opacity: 0.55 }} />}
+        <div role="alert" style={{ background: 'rgba(239,68,68,0.1)', borderRadius: 16, padding: 20, border: `1px solid ${COLORS.DANGER}`, marginBottom: 24 }}>
+          <p style={{ fontSize: 17, color: COLORS.DANGER, lineHeight: 1.75, margin: 0 }}>{errorMsg}</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <BigButton label="Retake Photo" hint="Go back to camera" icon="📸" variant="primary" onClick={reset} />
+          <BigButton label="Read Error Again" hint="Hear the error message" icon="🔊" onClick={() => speak(errorMsg)} />
+        </div>
+      </Screen>
+    )
+  }
+
+  // ── Naming & Save ───────────────────────────────────────────────────────────
   return (
-    <div className="screen">
-      {/* Header */}
-      <div style={{ padding: '16px 16px 8px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <button onClick={() => { stop(); goBack() }} aria-label="Go back"
-          style={{ fontSize: 20, color: COLORS.TEXT_MUTED, minHeight: 44, minWidth: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>←</button>
-        <h2 style={{ fontWeight: 700, fontSize: 18 }}>Scan T-Shirt</h2>
-      </div>
+    <Screen title="Save to Wardrobe" subtitle="Name this item">
+      {previewUrl && <img src={previewUrl} alt="Clothing item to save" style={{ width: '100%', borderRadius: 16, marginBottom: 16, maxHeight: 280, objectFit: 'cover' }} />}
 
-      {/* Camera / preview — takes remaining height */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', margin: '0 12px' }}>
-        {state === STATE.CAMERA && (
-          <CameraCapture captureRef={captureRef} onCapture={handleCapture} aspectRatio="unset"
-            style={{ position: 'absolute', inset: 0 }} />
-        )}
-        {state === STATE.LOADING && (
-          <div style={{ position: 'absolute', inset: 0, background: '#000', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-            {preview && <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} />}
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${COLORS.ACCENT}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-              <p style={{ color: COLORS.ACCENT_LIGHT, fontSize: 15 }}>Analyzing...</p>
-              <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-            </div>
-          </div>
-        )}
-        {state === STATE.RESULT && result && (
-          <div className="scroll" style={{ position: 'absolute', inset: 0, borderRadius: 'var(--radius)', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: 20 }}>
-            {result.speech_segments.map((s, i) => (
-              <p key={i} style={{ fontSize: 15, fontFamily: 'var(--font-body)', lineHeight: 1.7, marginBottom: 12, color: COLORS.TEXT }}>{s.text}</p>
-            ))}
-            {result.color_feedback && <p style={{ fontSize: 14, color: COLORS.ACCENT_LIGHT, lineHeight: 1.6, marginBottom: 8 }}>{result.color_feedback}</p>}
-            {result.fit_feedback && <p style={{ fontSize: 14, color: COLORS.TEXT_MUTED, lineHeight: 1.6 }}>{result.fit_feedback}</p>}
-          </div>
-        )}
-        {state === STATE.ERROR && (
-          <div style={{ position: 'absolute', inset: 0, borderRadius: 'var(--radius)', background: 'var(--bg-card)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12, textAlign: 'center' }}>
-            <p style={{ fontSize: 32 }}>⚠️</p>
-            <p style={{ fontSize: 15, color: COLORS.DANGER, lineHeight: 1.6 }}>{error}</p>
-          </div>
-        )}
-      </div>
+      {scanResult?.short_description && (
+        <div style={{ background: COLORS.SURFACE, borderRadius: 14, padding: '14px 18px', border: `1px solid ${COLORS.BORDER}`, marginBottom: 16 }}>
+          <p style={{ fontSize: 15, color: COLORS.TEXT, lineHeight: 1.75, margin: 0, fontFamily: 'var(--font-body)' }}>
+            {scanResult.short_description}
+          </p>
+        </div>
+      )}
 
-      {/* Bottom actions */}
-      <div style={{ padding: '12px 16px', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
-        {state === STATE.RESULT && (
-          <>
-            <button onClick={saveToWardrobe} disabled={saved}
-              style={{ width: '100%', padding: '15px 0', borderRadius: 14, fontWeight: 700, fontSize: 15,
-                background: saved ? 'rgba(16,185,129,0.15)' : `linear-gradient(135deg, ${COLORS.ACCENT} 0%, #5B21B6 100%)`,
-                color: saved ? COLORS.SUCCESS : '#fff', minHeight: 54 }}>
-              {saved ? '✓ Saved to Wardrobe' : 'Save to Wardrobe'}
-            </button>
-            <button onClick={reset}
-              style={{ width: '100%', padding: '13px 0', borderRadius: 14, fontSize: 15, background: 'rgba(255,255,255,0.05)', color: COLORS.TEXT_MUTED, minHeight: 50 }}>
-              Scan Again
-            </button>
-          </>
-        )}
-        {state === STATE.ERROR && (
-          <button onClick={reset}
-            style={{ width: '100%', padding: '15px 0', borderRadius: 14, fontWeight: 700, fontSize: 15, background: `linear-gradient(135deg, ${COLORS.ACCENT} 0%, #5B21B6 100%)`, color: '#fff', minHeight: 54 }}>
-            Try Again
-          </button>
-        )}
+      <div style={{ marginBottom: 20 }}>
+        <label htmlFor="item-name" style={{ fontSize: 13, color: COLORS.TEXT_MUTED, display: 'block', marginBottom: 8, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          Item name — tap to edit
+        </label>
+        <input
+          id="item-name"
+          ref={nameInputRef}
+          type="text"
+          value={customName}
+          onChange={(e) => setCustomName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          placeholder={scanResult?.name || scanResult?.suggested_name || 'e.g. Navy Blue T-Shirt'}
+          style={{ width: '100%', boxSizing: 'border-box', background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`, borderRadius: 14, padding: '14px 16px', fontSize: 16, color: COLORS.TEXT, outline: 'none', marginBottom: 16 }}
+          onFocus={(e) => e.target.style.borderColor = COLORS.ACCENT}
+          onBlur={(e) => e.target.style.borderColor = COLORS.BORDER}
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <BigButton label="Save to Wardrobe" hint={`Save as: ${customName.trim() || 'Clothing Item'}`} icon="✓" variant="success" onClick={handleSave} />
+          <BigButton label="Retake Photo" hint="Discard and take a new photo" icon="📸" onClick={reset} />
+        </div>
       </div>
-    </div>
+    </Screen>
   )
 }

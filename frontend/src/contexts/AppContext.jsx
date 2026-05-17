@@ -29,7 +29,7 @@ export function AppProvider({ children }) {
   }, [setDescMode])
 
   return (
-    <AppContext.Provider value={{ current, stack, navigate, goBack, descMode, setDescMode, toggleDescMode }}>
+    <AppContext.Provider value={{ current, stack, navigate, goBack, navParams: current.params, descMode, setDescMode, toggleDescMode }}>
       {children}
     </AppContext.Provider>
   )

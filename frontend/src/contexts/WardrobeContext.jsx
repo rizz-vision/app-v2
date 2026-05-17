@@ -42,8 +42,15 @@ export function WardrobeProvider({ children }) {
     setItems((prev) => prev.filter((i) => i.id !== id))
   }, [])
 
+  const editItem = updateItem
+
+  const removeLast = useCallback(async () => {
+    if (items.length === 0) return
+    await removeItem(items[0].id)
+  }, [items, removeItem])
+
   return (
-    <WardrobeContext.Provider value={{ items, loading, addItem, updateItem, removeItem }}>
+    <WardrobeContext.Provider value={{ items, loading, addItem, updateItem, editItem, removeItem, removeLast }}>
       {children}
     </WardrobeContext.Provider>
   )

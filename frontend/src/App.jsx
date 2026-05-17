@@ -15,14 +15,14 @@ import { AuthScreen } from './screens/AuthScreen.jsx'
 
 function Screen({ name }) {
   switch (name) {
-    case SCREENS.HOME:       return <HomeScreen />
-    case SCREENS.SCAN:       return <ScanScreen />
-    case SCREENS.WARDROBE:   return <WardrobeScreen />
-    case SCREENS.OUTFIT:     return <OutfitScreen />
-    case SCREENS.SHOPPING:   return <ShoppingScreen />
-    case SCREENS.MIRROR:     return <MirrorScreen />
-    case SCREENS.EDIT_ITEM:  return <EditItemScreen />
-    default:                 return <HomeScreen />
+    case SCREENS.HOME:      return <HomeScreen />
+    case SCREENS.SCAN:      return <ScanScreen />
+    case SCREENS.WARDROBE:  return <WardrobeScreen />
+    case SCREENS.OUTFIT:    return <OutfitScreen />
+    case SCREENS.SHOPPING:  return <ShoppingScreen />
+    case SCREENS.MIRROR:    return <MirrorScreen />
+    case SCREENS.EDIT_ITEM: return <EditItemScreen />
+    default:                return <HomeScreen />
   }
 }
 
@@ -33,8 +33,7 @@ export default function App() {
   if (loading) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid #7C3AED',
-          borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid #7C3AED', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     )

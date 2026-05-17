@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY: str = os.environ["GEMINI_API_KEY"]
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 TSHIRT_MODEL_PATH: str = os.getenv("TSHIRT_MODEL_PATH", "model/tshirt_classifier.keras")
 TSHIRT_THRESHOLD_PATH: str = os.getenv("TSHIRT_THRESHOLD_PATH", "model/threshold.json")

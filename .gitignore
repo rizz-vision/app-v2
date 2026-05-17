@@ -8,10 +8,12 @@ dist/
 *.egg
 .pytest_cache/
 
-# Env
+# Env — allow only .example files
 .env
-.env.local
+.env.*
 *.env
+!*.env.example
+!.env.example
 
 # Model artifacts (large — commit only final trained model)
 backend/model/*.keras
@@ -36,3 +38,6 @@ frontend/.vite/
 
 # Kaggle credentials
 kaggle.json
+frontend/.env.production
+frontend/.env.local
+frontend/.env.development

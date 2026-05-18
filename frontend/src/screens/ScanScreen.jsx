@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Screen } from '../components/Screen.jsx'
 import { BigButton } from '../components/BigButton.jsx'
 import { CameraCapture } from '../components/CameraCapture.jsx'
+import { ContextChat } from '../components/ContextChat.jsx'
 import { useApp } from '../contexts/AppContext.jsx'
 import { useVoice } from '../contexts/VoiceContext.jsx'
 import { useWardrobe } from '../contexts/WardrobeContext.jsx'
@@ -232,6 +233,11 @@ export function ScanScreen() {
         <BigButton label="Save to Wardrobe" hint={`Save as: ${customName.trim() || 'Clothing Item'}`} icon="✓" variant="primary" onClick={handleSave} />
         <BigButton label="Retake Photo" hint="Discard and take a new photo" icon="📸" onClick={reset} />
       </div>
+      <ContextChat
+        resultContext={[scanResult?.short_description, scanResult?.long_description].filter(Boolean).join(' ')}
+        feature="scan"
+        speak={speak}
+      />
     </Screen>
   )
 }

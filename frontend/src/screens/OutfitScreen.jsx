@@ -188,7 +188,7 @@ export function OutfitScreen() {
         <BigButton label="Try Different Options" icon="🔄" onClick={() => { setPhase('occasion'); setOccasion(null); setResult(''); setUsedWardrobe(false) }} />
       </div>
 
-      {outfitChatContext && <ContextChat context={outfitChatContext} feature="outfit" speak={speak} />}
+      {outfitChatContext && <ContextChat resultContext={outfitChatContext} feature="outfit" speak={speak} />}
     </Screen>
   )
 }

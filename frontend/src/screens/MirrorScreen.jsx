@@ -142,7 +142,7 @@ export function MirrorScreen() {
         <BigButton label="Try Again" icon="📸" onClick={reset} />
       </div>
 
-      {mirrorChatContext && <ContextChat context={mirrorChatContext} feature="mirror" speak={speak} />}
+      {mirrorChatContext && <ContextChat resultContext={mirrorChatContext} feature="mirror" speak={speak} />}
     </Screen>
   )
 }

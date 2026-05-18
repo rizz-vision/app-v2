@@ -101,7 +101,7 @@ export function WardrobeScreen() {
         ))}
       </div>
 
-      <ContextChat context={activeChatContext} feature="wardrobe" speak={speak} />
+      <ContextChat resultContext={activeChatContext} feature="wardrobe" speak={speak} />
     </Screen>
   )
 }

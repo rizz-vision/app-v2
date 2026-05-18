@@ -56,11 +56,14 @@ export async function shoppingAnalyze(imageBlob, wardrobe = []) {
   return post('/shopping-analyze', fd, TIMEOUTS.analyze)
 }
 
-export async function contextChat({ question, context = '', feature = 'scan' }) {
+export async function contextChat({ question, feature = 'scan', resultContext = '', wardrobeContext = '', history = [], language = 'en' }) {
   const fd = new FormData()
   fd.append('question', question.slice(0, 500))
-  fd.append('context', context.slice(0, 2000))
   fd.append('feature', feature.slice(0, 50))
+  fd.append('result_context', resultContext.slice(0, 2000))
+  fd.append('wardrobe_context', wardrobeContext.slice(0, 1500))
+  fd.append('history', JSON.stringify(history.slice(-6)))
+  fd.append('language', language.slice(0, 10))
   return post('/context-chat', fd)
 }
 

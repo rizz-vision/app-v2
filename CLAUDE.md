@@ -89,21 +89,4 @@ All backend calls go through `frontend/src/services/api.js`, which posts `FormDa
 
 The app currently uses the **Web Speech API** (`SpeechSynthesis` + `SpeechRecognition`) — zero cost, no latency, works offline, but voices are robotic and vary by device/browser.
 
-### Natural voice alternatives to ElevenLabs
-
-| Service | Quality | Latency | Pricing | Best for |
-|---|---|---|---|---|
-| **Google Cloud TTS** (WaveNet / Journey voices) | ★★★★☆ | ~200ms | $16/1M chars | Best value for high volume. Journey voices are near-human. |
-| **Microsoft Azure TTS** (Neural voices) | ★★★★☆ | ~150ms | $15/1M chars | Neural voices include emotion/style control. Good accessibility support. |
-| **OpenAI TTS** (`tts-1-hd`, voices: alloy/nova/shimmer) | ★★★★☆ | ~300ms | $30/1M chars | Very natural. Simple API. `nova` voice is warm and clear — good for this app. |
-| **Cartesia Sonic** | ★★★★★ | ~90ms | $65/1M chars | Lowest latency of any neural TTS. Designed for real-time voice apps. |
-| **PlayHT 2.0** | ★★★★☆ | ~400ms | $30/1M chars | Good voice cloning if a branded voice is wanted. |
-| **Kokoro (open-source)** | ★★★☆☆ | ~500ms self-hosted | Free | Can run on HuggingFace Spaces. No cost but needs GPU. |
-
-### Recommended upgrade path
-
-1. **Short term:** Replace `SpeechSynthesisUtterance` in `VoiceContext.jsx` with **OpenAI TTS** (`nova` voice, `tts-1` model). One API call, streams an MP3, play with the Web Audio API. Adds ~300ms latency but dramatically improves voice quality.
-2. **Longer term:** Switch to **Cartesia Sonic** for sub-100ms streaming TTS. Most natural for real-time interaction. Requires streaming audio chunks rather than waiting for a full MP3.
-
-### Integration point
 All speech goes through the `speak(text)` function in `VoiceContext.jsx`. Swapping TTS provider means replacing only that function — the rest of the app is unaffected.

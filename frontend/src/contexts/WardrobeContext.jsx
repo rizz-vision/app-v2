@@ -22,7 +22,7 @@ export function WardrobeProvider({ children }) {
       )
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
+    return () => { channel.unsubscribe(); supabase.removeChannel(channel) }
   }, [user])
 
   // imageBlob is optional — if provided, uploads to storage and stores the URL

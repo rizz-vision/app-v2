@@ -3,6 +3,7 @@ from app.models.schemas import LLMFeedback, SpeechSegment
 
 
 def _clean(text: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", text)             # strip HTML tags
     text = re.sub(r"\*+([^*]+)\*+", r"\1", text)   # strip markdown bold/italic
     text = re.sub(r"\(([^)]+)\)", r"\1", text)       # remove parentheses
     text = re.sub(r"[—–]", ". ", text)               # em/en dash → period

@@ -158,7 +158,7 @@ export function VoiceProvider({ children }) {
     }
   }, [navigate, goBack, toggleDescMode, setDescMode, speak, stop, askAssistant, language, current.screen])
 
-  // ── SpeechRecognition — always-on, auto-restarts on end ───────────────────
+  // ── SpeechRecognition — always-on, auto-restarts with backoff ────────────
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) return
@@ -169,10 +169,15 @@ export function VoiceProvider({ children }) {
     rec.lang = locale
     recognitionRef.current = rec
 
-    rec.onstart = () => setListening(true)
+    let backoff = 300      // ms — doubles on each consecutive failure, caps at 10s
+    let restartTimer = null
+
+    rec.onstart = () => { setListening(true); backoff = 300 }
     rec.onend = () => {
       setListening(false)
-      if (!pausedRef.current) setTimeout(() => { try { rec.start() } catch {} }, 300)
+      if (pausedRef.current) return
+      restartTimer = setTimeout(() => { try { rec.start() } catch {} }, backoff)
+      backoff = Math.min(backoff * 2, 10_000)
     }
     rec.onerror = (e) => {
       if (e.error !== 'no-speech') console.warn('SpeechRecognition error:', e.error)
@@ -180,13 +185,14 @@ export function VoiceProvider({ children }) {
 
     rec.start()
 
-    const pause = () => { pausedRef.current = true; rec.stop() }
+    const pause = () => { pausedRef.current = true; clearTimeout(restartTimer); rec.stop() }
     const resume = () => { pausedRef.current = false; try { rec.start() } catch {} }
     window.addEventListener('pauseGlobalVoice', pause)
     window.addEventListener('resumeGlobalVoice', resume)
 
     return () => {
       rec.onend = null
+      clearTimeout(restartTimer)
       rec.stop()
       window.removeEventListener('pauseGlobalVoice', pause)
       window.removeEventListener('resumeGlobalVoice', resume)

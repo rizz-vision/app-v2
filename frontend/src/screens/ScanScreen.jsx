@@ -31,7 +31,8 @@ export function ScanScreen() {
   }, [phase])
 
   const handleCapture = useCallback(async (blob, dataUrl) => {
-    setPhase('analyzing')
+    // Bail if already processing — prevents double-capture race
+    setPhase((prev) => { if (prev !== 'camera') return prev; return 'analyzing' })
     setPreviewUrl(dataUrl)
     capturedBlobRef.current = blob
     speak('Identifying the item. One moment.')

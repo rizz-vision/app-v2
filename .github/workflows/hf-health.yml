@@ -1,0 +1,41 @@
+name: HuggingFace Space health check
+
+on:
+  workflow_run:
+    workflows: ["Deploy backend to HuggingFace Spaces"]
+    types: [completed]
+  schedule:
+    - cron: '0 */6 * * *'  # every 6 hours
+  workflow_dispatch:        # manual trigger from Actions tab
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Space to boot
+        if: github.event_name == 'workflow_run'
+        run: sleep 120   # give HF ~2 min to rebuild after a deploy
+
+      - name: Poll /health until up (max 5 min)
+        run: |
+          URL="https://rizzvision69-app-v2-space.hf.space/health"
+          echo "Checking $URL"
+          for i in $(seq 1 15); do
+            STATUS=$(curl -s -o /tmp/body -w "%{http_code}" "$URL")
+            BODY=$(cat /tmp/body)
+            echo "Attempt $i: HTTP $STATUS — $BODY"
+            if [ "$STATUS" = "200" ]; then
+              echo "✓ Space is up"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "❌ Space did not come up after 5 minutes"
+          exit 1
+
+      - name: Verify response content
+        run: |
+          BODY=$(curl -s https://rizzvision69-app-v2-space.hf.space/health)
+          echo "Response: $BODY"
+          echo "$BODY" | grep -q '"status":"ok"' || (echo "❌ Unexpected response" && exit 1)
+          echo "✓ Health response valid"

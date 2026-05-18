@@ -9,7 +9,7 @@ import { quickScan } from '../services/api.js'
 import { SCREENS, COLORS, RESPONSES } from '../utils/constants.js'
 
 export function ScanScreen() {
-  const { navigate } = useApp()
+  const { navigate, goBack } = useApp()
   const { speak } = useVoice()
   const { addItem } = useWardrobe()
 
@@ -110,17 +110,34 @@ export function ScanScreen() {
   if (phase === 'camera') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <CameraCapture onCapture={handleCapture} aspectRatio="unset" />
-        <div style={{ position: 'absolute', bottom: 140, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10 }}>
-          <label aria-label="Upload from gallery" style={{
-            background: COLORS.BG, border: `2px solid ${COLORS.BORDER}`,
-            borderRadius: COLORS.RADIUS, color: COLORS.TEXT,
-            fontSize: 14, fontWeight: 700, padding: '10px 20px',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-          }}>
-            🖼 Upload from Gallery
-            <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
-          </label>
+        <div style={{
+          background: COLORS.BG, borderBottom: `2px solid ${COLORS.BORDER}`,
+          padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
+        }}>
+          <button onClick={goBack} aria-label="Go back" style={{
+            width: 44, height: 44, minWidth: 44, border: `2px solid ${COLORS.BORDER}`,
+            borderRadius: COLORS.RADIUS, background: 'transparent', color: COLORS.TEXT,
+            fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0,
+          }}>←</button>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.TEXT, lineHeight: 1.1 }}>Scan</div>
+            <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginTop: 2 }}>Point camera at a clothing item</div>
+          </div>
+        </div>
+        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+          <CameraCapture onCapture={handleCapture} aspectRatio="unset" />
+          <div style={{ position: 'absolute', bottom: 140, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+            <label aria-label="Upload from gallery" style={{
+              background: COLORS.BG, border: `2px solid ${COLORS.BORDER}`,
+              borderRadius: COLORS.RADIUS, color: COLORS.TEXT,
+              fontSize: 14, fontWeight: 700, padding: '10px 20px',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              🖼 Upload from Gallery
+              <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
+            </label>
+          </div>
         </div>
       </div>
     )

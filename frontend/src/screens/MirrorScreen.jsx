@@ -4,11 +4,13 @@ import { BigButton } from '../components/BigButton.jsx'
 import { CameraCapture } from '../components/CameraCapture.jsx'
 import { ContextChat } from '../components/ContextChat.jsx'
 import { useVoice } from '../contexts/VoiceContext.jsx'
+import { useApp } from '../contexts/AppContext.jsx'
 import { analyzeImage } from '../services/api.js'
 import { COLORS, RESPONSES } from '../utils/constants.js'
 
 export function MirrorScreen() {
   const { speak } = useVoice()
+  const { goBack } = useApp()
   const [phase, setPhase] = useState('camera')
   const [result, setResult] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
@@ -54,9 +56,15 @@ export function MirrorScreen() {
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{
           background: COLORS.BG, borderBottom: `2px solid ${COLORS.BORDER}`,
-          padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
         }}>
-          <div style={{ width: 36, height: 36, background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+          <button onClick={goBack} aria-label="Go back" style={{
+            width: 44, height: 44, minWidth: 44, border: `2px solid ${COLORS.BORDER}`,
+            borderRadius: COLORS.RADIUS, background: 'transparent', color: COLORS.TEXT,
+            fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0,
+          }}>←</button>
+          <div style={{ width: 36, height: 36, background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
             🪞
           </div>
           <div>

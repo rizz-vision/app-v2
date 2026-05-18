@@ -41,7 +41,7 @@ jobs:
 
       - name: Add HuggingFace remote (with token)
         run: |
-          git remote add hf-space https://rizzvision69:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/rizzvision69/app-v2-space
+          git remote add hf-space https://oauth2accesstoken:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/rizzvision69/app-v2-space
 
       - name: Deploy to HuggingFace Spaces
         run: bash scripts/push-hf.sh hf-space

@@ -365,6 +365,40 @@ async def context_chat(
 
 
 # ---------------------------------------------------------------------------
+# Describe frame — lightweight "what's in frame?" for preview mode
+# ---------------------------------------------------------------------------
+
+@router.post("/describe-frame")
+async def describe_frame(image: UploadFile = File(...), language: Optional[str] = Form("en")):
+    import io
+    from PIL import Image as PILImage
+
+    raw = await image.read()
+    img = PILImage.open(io.BytesIO(raw)).convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=75)
+
+    lang_name = LANGUAGE_NAMES.get(language or "en", "English")
+    prompt = (
+        f"Describe what you see in this image in 1-2 short sentences in {lang_name}. "
+        "Focus on what's most prominent — the main subject, its position in frame, and lighting. "
+        "Write for text-to-speech. No markdown."
+    )
+    try:
+        response = _gemini().models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[
+                types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
+                prompt,
+            ],
+            config=types.GenerateContentConfig(temperature=0.2),
+        )
+        return {"description": response.text.strip()}
+    except Exception:
+        return {"description": "Unable to describe the frame right now."}
+
+
+# ---------------------------------------------------------------------------
 # Identify item (match photo to wardrobe)
 # ---------------------------------------------------------------------------
 

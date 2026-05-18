@@ -67,6 +67,13 @@ export async function contextChat({ question, feature = 'scan', resultContext = 
   return post('/context-chat', fd)
 }
 
+export async function describeFrame(imageBlob, language = 'en') {
+  const fd = new FormData()
+  fd.append('image', imageBlob, 'frame.jpg')
+  fd.append('language', language)
+  return post('/describe-frame', fd, TIMEOUTS.analyze)
+}
+
 export async function identifyItem(imageBlob, wardrobe = []) {
   const fd = new FormData()
   fd.append('image', imageBlob, 'photo.jpg')

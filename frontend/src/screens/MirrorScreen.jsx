@@ -72,7 +72,7 @@ export function MirrorScreen() {
             <div style={{ fontSize: 11, color: COLORS.TEXT_MUTED, marginTop: 2 }}>Use Scan to add items to your wardrobe</div>
           </div>
         </div>
-        <CameraCapture onCapture={handleCapture} aspectRatio="unset" facingMode="user" />
+        <CameraCapture onCapture={handleCapture} onFrameDescribed={(t) => speak(t)} aspectRatio="unset" facingMode="user" />
       </div>
     )
   }

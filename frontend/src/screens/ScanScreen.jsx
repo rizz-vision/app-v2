@@ -128,7 +128,7 @@ export function ScanScreen() {
           </div>
         </div>
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-          <CameraCapture onCapture={handleCapture} aspectRatio="unset" />
+          <CameraCapture onCapture={handleCapture} onFrameDescribed={(t) => speak(t)} aspectRatio="unset" />
           <div style={{ position: 'absolute', bottom: 140, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10 }}>
             <label aria-label="Upload from gallery" style={{
               background: COLORS.BG, border: `2px solid ${COLORS.BORDER}`,

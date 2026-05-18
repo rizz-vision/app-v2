@@ -103,7 +103,7 @@ export function ShoppingScreen() {
 
       {/* Camera */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-        <CameraCapture captureRef={captureRef} onCapture={handleCapture} aspectRatio="unset" />
+        <CameraCapture captureRef={captureRef} onCapture={handleCapture} onFrameDescribed={(t) => speak(t)} aspectRatio="unset" />
         {!result && !errorMsg && (
           <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', background: COLORS.BG, border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: '8px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.TEXT_MUTED }}>Point at a clothing item to scan</span>

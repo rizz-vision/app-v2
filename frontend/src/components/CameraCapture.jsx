@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { COLORS } from '../utils/constants.js'
+import { describeFrame } from '../services/api.js'
 
-export function CameraCapture({ onCapture, captureRef, facingMode: initialFacing = 'environment', aspectRatio = '3/4' }) {
+export function CameraCapture({ onCapture, captureRef, onFrameDescribed, facingMode: initialFacing = 'environment', aspectRatio = '3/4', language = 'en' }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -15,6 +16,7 @@ export function CameraCapture({ onCapture, captureRef, facingMode: initialFacing
   const [facing, setFacing] = useState(initialFacing)
   const [torchOn, setTorchOn] = useState(false)
   const [torchSupported, setTorchSupported] = useState(false)
+  const [describing, setDescribing] = useState(false)
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
@@ -110,6 +112,28 @@ export function CameraCapture({ onCapture, captureRef, facingMode: initialFacing
     setTorchOn(false)
     await startCamera(next)
   }, [startCamera])
+
+  const describeCurrentFrame = useCallback(async () => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || !video.videoWidth || describing) return
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext('2d').drawImage(video, 0, 0)
+    canvas.toBlob(async (blob) => {
+      if (!blob) return
+      setDescribing(true)
+      onFrameDescribed?.('Describing what I see...')
+      try {
+        const data = await describeFrame(blob, language)
+        onFrameDescribed?.(data.description || 'Nothing clear in frame.')
+      } catch {
+        onFrameDescribed?.('Could not describe the frame right now.')
+      } finally {
+        setDescribing(false)
+      }
+    }, 'image/jpeg', 0.75)
+  }, [describing, onFrameDescribed, language])
 
   const capture = useCallback(() => {
     const video = videoRef.current
@@ -226,6 +250,29 @@ export function CameraCapture({ onCapture, captureRef, facingMode: initialFacing
           aria-label="Take photo"
           style={{ position: 'absolute', bottom: 28, left: '50%', transform: 'translateX(-50%)', width: 88, height: 88, borderRadius: '50%', background: 'rgba(124,58,237,0.85)', border: '4px solid #fff', fontSize: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', touchAction: 'manipulation' }}>
           📸
+        </button>
+      )}
+
+      {/* Describe frame — only shown when parent passes onFrameDescribed */}
+      {ready && onFrameDescribed && (
+        <button
+          onClick={describeCurrentFrame}
+          disabled={describing}
+          aria-label="Describe what's in frame"
+          style={{
+            position: 'absolute', bottom: 28, right: 16,
+            height: 52, padding: '0 14px',
+            borderRadius: COLORS.RADIUS,
+            background: describing ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.6)',
+            border: `2px solid ${describing ? COLORS.ACCENT : 'rgba(255,255,255,0.5)'}`,
+            color: '#fff', fontSize: 12, fontWeight: 700,
+            letterSpacing: 0.8, textTransform: 'uppercase',
+            display: 'flex', alignItems: 'center', gap: 6,
+            cursor: describing ? 'not-allowed' : 'pointer',
+            opacity: describing ? 0.7 : 1,
+          }}
+        >
+          {describing ? '…' : '👁 Describe'}
         </button>
       )}
     </div>

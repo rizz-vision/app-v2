@@ -7,6 +7,7 @@ export const SCREENS = {
   MIRROR: 'MIRROR',
   EDIT_ITEM: 'EDIT_ITEM',
   IDENTIFY: 'IDENTIFY',
+  PROFILE: 'PROFILE',
   AUTH: 'AUTH',
 }
 

@@ -41,11 +41,12 @@ export async function quickScan(imageBlob) {
   return post('/quick-scan', fd, TIMEOUTS.analyze)
 }
 
-export async function getOutfitSuggestion({ wardrobeItems = '', occasion = '', mode = 'general' } = {}) {
+export async function getOutfitSuggestion({ wardrobeItems = '', occasion = '', mode = 'general', profileContext = '' } = {}) {
   const fd = new FormData()
   fd.append('wardrobe_items', wardrobeItems)
   fd.append('occasion', occasion.slice(0, 200))
   fd.append('mode', mode.slice(0, 50))
+  fd.append('profile_context', profileContext.slice(0, 500))
   return post('/outfit-suggestion', fd)
 }
 

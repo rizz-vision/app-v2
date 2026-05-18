@@ -5,6 +5,7 @@ import { ContextChat } from '../components/ContextChat.jsx'
 import { useApp } from '../contexts/AppContext.jsx'
 import { useVoice } from '../contexts/VoiceContext.jsx'
 import { useWardrobe } from '../contexts/WardrobeContext.jsx'
+import { useProfile } from '../contexts/ProfileContext.jsx'
 import { getOutfitSuggestion } from '../services/api.js'
 import { OCCASIONS, SCREENS, COLORS, RESPONSES, DESC_MODES } from '../utils/constants.js'
 
@@ -14,6 +15,7 @@ export function OutfitScreen() {
   const { navigate, navParams, descMode, toggleDescMode } = useApp()
   const { speak } = useVoice()
   const { items } = useWardrobe()
+  const { profileContext } = useProfile()
 
   const [phase, setPhase] = useState('occasion')
   const [occasion, setOccasion] = useState(null)
@@ -38,7 +40,7 @@ export function OutfitScreen() {
       ? items.map((i) => `${i.name} (${i.category}): ${i.description || ''}`).join('\n')
       : ''
     try {
-      const data = await getOutfitSuggestion({ wardrobeItems: wardrobeText, occasion: occasionLabel, mode })
+      const data = await getOutfitSuggestion({ wardrobeItems: wardrobeText, occasion: occasionLabel, mode, profileContext })
       const text = data.suggestion || data.response || data.text || ''
       setUsedWardrobe(wardrobeText.length > 0)
       setResult(text); setPhase('result'); speak(text)

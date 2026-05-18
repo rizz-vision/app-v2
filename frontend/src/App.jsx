@@ -13,6 +13,7 @@ import { ShoppingScreen } from './screens/ShoppingScreen.jsx'
 import { MirrorScreen } from './screens/MirrorScreen.jsx'
 import { EditItemScreen } from './screens/EditItemScreen.jsx'
 import { IdentifyScreen } from './screens/IdentifyScreen.jsx'
+import { ProfileScreen } from './screens/ProfileScreen.jsx'
 import { AuthScreen } from './screens/AuthScreen.jsx'
 
 function Screen({ name }) {
@@ -25,6 +26,7 @@ function Screen({ name }) {
     case SCREENS.MIRROR:    return <MirrorScreen />
     case SCREENS.EDIT_ITEM: return <EditItemScreen />
     case SCREENS.IDENTIFY:  return <IdentifyScreen />
+    case SCREENS.PROFILE:   return <ProfileScreen />
     default:                return <HomeScreen />
   }
 }

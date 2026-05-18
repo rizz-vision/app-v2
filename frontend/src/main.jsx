@@ -6,15 +6,18 @@ import { AppProvider } from './contexts/AppContext.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
 import { WardrobeProvider } from './contexts/WardrobeContext.jsx'
 import { VoiceProvider } from './contexts/VoiceContext.jsx'
+import { ProfileProvider } from './contexts/ProfileContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
       <AppProvider>
         <WardrobeProvider>
-          <VoiceProvider>
-            <App />
-          </VoiceProvider>
+          <ProfileProvider>
+            <VoiceProvider>
+              <App />
+            </VoiceProvider>
+          </ProfileProvider>
         </WardrobeProvider>
       </AppProvider>
     </AuthProvider>

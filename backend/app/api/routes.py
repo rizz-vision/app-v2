@@ -138,21 +138,27 @@ async def outfit_suggestion(
     wardrobe_items: str = Form(""),
     occasion: Optional[str] = Form(""),
     mode: Optional[str] = Form("general"),
+    profile_context: Optional[str] = Form(""),
 ):
     has_wardrobe = bool(wardrobe_items and wardrobe_items.strip())
+    profile_note = f"\nUser profile: {profile_context}" if profile_context and profile_context.strip() else ""
 
     if has_wardrobe:
         prompt = (
             f"You are a personal stylist. The user wants an outfit for: {occasion or 'casual'}.\n"
-            f"Their wardrobe:\n{wardrobe_items}\n\n"
+            f"Their wardrobe:\n{wardrobe_items}\n"
+            f"{profile_note}\n"
             "Suggest a specific outfit using items from their wardrobe. "
             "Name the exact items. Explain why they work together — color, texture, occasion fit. "
+            "Account for the user's body type and style preferences if provided. "
             "2-3 short sentences per point. No markdown. No bullet lists."
         )
     else:
         prompt = (
             f"You are a personal stylist. The user wants outfit ideas for: {occasion or 'casual'}.\n"
+            f"{profile_note}\n"
             "Give 2-3 general outfit ideas with specific garment types, colors, and fabrics. "
+            "Account for the user's body type, colour preferences, and style if provided. "
             "Keep it practical and concrete — no vague terms like 'nice' or 'stylish'. "
             "2-3 short sentences per idea. No markdown."
         )

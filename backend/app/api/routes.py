@@ -11,7 +11,9 @@ from app.errors.handlers import ImageQualityError
 import json
 from google import genai
 from google.genai import types
+from google.genai.errors import ServerError as GeminiServerError
 from app.core.config import GEMINI_API_KEY
+from app.services import groq_fallback
 
 router = APIRouter()
 
@@ -70,6 +72,17 @@ QUICK_SCAN_SCHEMA = {
 }
 
 
+QUICK_SCAN_PROMPT = (
+    "Identify the clothing item in this image. Return JSON with:\n"
+    "- suggested_name: short item name (e.g. 'Navy Graphic Tee')\n"
+    "- category: one of tops/bottoms/outerwear/shoes/accessories/other\n"
+    "- color: primary color description\n"
+    "- short_description: one sentence, max 15 words, describing what you see (fabric, color, print)\n"
+    "- long_description: 3-4 sentences covering fabric feel, cut/fit, graphic/print details if any, "
+    "and what occasions or styles it suits. Concrete and tactile — no vague words like 'nice' or 'great'."
+)
+
+
 @router.post("/quick-scan", response_model=QuickScanResponse)
 async def quick_scan(image: UploadFile = File(...)):
     import io
@@ -79,30 +92,38 @@ async def quick_scan(image: UploadFile = File(...)):
     img = Image.open(io.BytesIO(raw)).convert("RGB")
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
+    jpeg = buf.getvalue()
 
-    response = _gemini().models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[
-            types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
-            (
-                "Identify the clothing item in this image. Return JSON with:\n"
-                "- suggested_name: short item name (e.g. 'Navy Graphic Tee')\n"
-                "- category: one of tops/bottoms/outerwear/shoes/accessories/other\n"
-                "- color: primary color description\n"
-                "- short_description: one sentence, max 15 words, describing what you see (fabric, color, print)\n"
-                "- long_description: 3-4 sentences covering fabric feel, cut/fit, graphic/print details if any, "
-                "and what occasions or styles it suits. Concrete and tactile — no vague words like 'nice' or 'great'."
+    gemini_unavailable = False
+    try:
+        response = _gemini().models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[
+                types.Part.from_bytes(data=jpeg, mime_type="image/jpeg"),
+                QUICK_SCAN_PROMPT,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=QUICK_SCAN_SCHEMA,
+                temperature=0.3,
             ),
-        ],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=QUICK_SCAN_SCHEMA,
-            temperature=0.3,
-        ),
-    )
-    data = json.loads(response.text)
-    # backward compat field
+        )
+        data = json.loads(response.text)
+    except GeminiServerError as exc:
+        if exc.status_code != 503:
+            raise
+        gemini_unavailable = True
+        data = groq_fallback.vision_json(
+            jpeg,
+            QUICK_SCAN_PROMPT,
+            schema_hint=str(QUICK_SCAN_SCHEMA),
+        )
+
     data["description"] = data.get("short_description", "")
+    if gemini_unavailable:
+        data["short_description"] = (
+            groq_fallback.FALLBACK_NOTE + " " + data.get("short_description", "")
+        ).strip()
     return QuickScanResponse(**data)
 
 
@@ -134,12 +155,18 @@ async def outfit_suggestion(
             "2-3 short sentences per idea. No markdown."
         )
 
-    response = _gemini().models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(temperature=0.7),
-    )
-    return {"suggestion": response.text}
+    try:
+        response = _gemini().models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.7),
+        )
+        suggestion = response.text
+    except GeminiServerError as exc:
+        if exc.status_code != 503:
+            raise
+        suggestion = groq_fallback.FALLBACK_NOTE + " " + groq_fallback.text_plain(prompt)
+    return {"suggestion": suggestion}
 
 
 # ---------------------------------------------------------------------------
@@ -200,29 +227,51 @@ async def shopping_analyze(
         "- top_archetypes: 1-2 style archetype strings (e.g. 'minimalist', 'streetwear', 'classic')"
     )
 
-    response = _gemini().models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[
-            types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
-            prompt,
-        ],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=SHOPPING_SCHEMA,
-            temperature=0.4,
-        ),
-    )
-
+    gemini_unavailable = False
     try:
-        data = json.loads(response.text)
-    except Exception:
-        data = {
-            "item_description": "I can see a clothing item.",
-            "wardrobe_match": "Unable to assess compatibility right now.",
-            "buy_verdict": "Try again for a full assessment.",
-            "suitable_occasions": [],
-            "top_archetypes": [],
-        }
+        response = _gemini().models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[
+                types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
+                prompt,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SHOPPING_SCHEMA,
+                temperature=0.4,
+            ),
+        )
+        try:
+            data = json.loads(response.text)
+        except Exception:
+            data = {
+                "item_description": "I can see a clothing item.",
+                "wardrobe_match": "Unable to assess compatibility right now.",
+                "buy_verdict": "Try again for a full assessment.",
+                "suitable_occasions": [],
+                "top_archetypes": [],
+            }
+    except GeminiServerError as exc:
+        if exc.status_code != 503:
+            raise
+        gemini_unavailable = True
+        try:
+            data = groq_fallback.vision_json(
+                buf.getvalue(),
+                prompt,
+                schema_hint=str(SHOPPING_SCHEMA),
+            )
+        except Exception:
+            data = {
+                "item_description": groq_fallback.FALLBACK_NOTE,
+                "wardrobe_match": "Unable to assess compatibility right now.",
+                "buy_verdict": "Try again for a full assessment.",
+                "suitable_occasions": [],
+                "top_archetypes": [],
+            }
+
+    if gemini_unavailable and data.get("item_description"):
+        data["item_description"] = groq_fallback.FALLBACK_NOTE + " " + data["item_description"]
 
     segments = []
     if data.get("item_description"):
@@ -258,15 +307,23 @@ async def context_chat(
         f"You are a fashion assistant helping with {feature}. "
         "Give short, concrete answers under 20 words per sentence."
     )
-    response = _gemini().models.generate_content(
-        model=GEMINI_MODEL,
-        contents=f"Context: {context}\n\nQuestion: {question}",
-        config=types.GenerateContentConfig(
-            system_instruction=system,
-            temperature=0.4,
-        ),
-    )
-    return {"answer": response.text}
+    try:
+        response = _gemini().models.generate_content(
+            model=GEMINI_MODEL,
+            contents=f"Context: {context}\n\nQuestion: {question}",
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                temperature=0.4,
+            ),
+        )
+        answer = response.text
+    except GeminiServerError as exc:
+        if exc.status_code != 503:
+            raise
+        answer = groq_fallback.FALLBACK_NOTE + " " + groq_fallback.text_plain(
+            f"Context: {context}\n\nQuestion: {question}", system=system
+        )
+    return {"answer": answer}
 
 
 # ---------------------------------------------------------------------------
@@ -296,19 +353,27 @@ async def identify_item(
         "required": ["matched_id", "confidence", "spoken"],
     }
 
-    response = _gemini().models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[
-            types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
-            f"Wardrobe items (JSON): {wardrobe}\n\nWhich item best matches this photo? Return matched_id (or 'none'), confidence (low/medium/high), and a spoken sentence describing the match.",
-        ],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=schema,
-            temperature=0.2,
-        ),
-    )
-    return json.loads(response.text)
+    identify_prompt = f"Wardrobe items (JSON): {wardrobe}\n\nWhich item best matches this photo? Return matched_id (or 'none'), confidence (low/medium/high), and a spoken sentence describing the match."
+    try:
+        response = _gemini().models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[
+                types.Part.from_bytes(data=buf.getvalue(), mime_type="image/jpeg"),
+                identify_prompt,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=schema,
+                temperature=0.2,
+            ),
+        )
+        return json.loads(response.text)
+    except GeminiServerError as exc:
+        if exc.status_code != 503:
+            raise
+        data = groq_fallback.vision_json(buf.getvalue(), identify_prompt, schema_hint=str(schema))
+        data.setdefault("spoken", groq_fallback.FALLBACK_NOTE + " " + data.get("spoken", ""))
+        return data
 
 
 # ---------------------------------------------------------------------------
@@ -350,17 +415,31 @@ async def voice_query(
         },
         "required": ["answer", "command"],
     }
-    response = _gemini().models.generate_content(
-        model=GEMINI_MODEL,
-        contents=f"Current screen: {app_context}\nUser said: {query}",
-        config=types.GenerateContentConfig(
-            system_instruction=system,
-            response_mime_type="application/json",
-            response_schema=schema,
-            temperature=0.3,
-        ),
-    )
-    return json.loads(response.text)
+    try:
+        response = _gemini().models.generate_content(
+            model=GEMINI_MODEL,
+            contents=f"Current screen: {app_context}\nUser said: {query}",
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                response_mime_type="application/json",
+                response_schema=schema,
+                temperature=0.3,
+            ),
+        )
+        return json.loads(response.text)
+    except GeminiServerError as exc:
+        if exc.status_code != 503:
+            raise
+        data = groq_fallback.text_json(
+            f"Current screen: {app_context}\nUser said: {query}",
+            schema_hint='{"answer": "string", "command": "string"}',
+            system=system,
+        )
+        data.setdefault("answer", groq_fallback.FALLBACK_NOTE)
+        data.setdefault("command", "")
+        # Prepend fallback note so user hears it spoken
+        data["answer"] = groq_fallback.FALLBACK_NOTE + " " + data["answer"]
+        return data
 
 
 # ---------------------------------------------------------------------------

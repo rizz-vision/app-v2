@@ -51,6 +51,7 @@ async def analyze(
         occasion_verdict=feedback.occasion_verdict,
         wardrobe_description=feedback.wardrobe_description,
         personal_appearance=feedback.personal_appearance,
+        mirror_data=feedback.mirror_data,
         detection=detection,
         latency_ms=int((time.time() - t0) * 1000),
     )

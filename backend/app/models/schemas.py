@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 
 
 class DetectionResult(BaseModel):
@@ -21,8 +21,9 @@ class LLMFeedback(BaseModel):
     overall_verdict: str
     top_fix: str
     occasion_verdict: str = ""
-    wardrobe_description: str
+    wardrobe_description: str = ""
     personal_appearance: str = ""
+    mirror_data: Optional[dict[str, Any]] = None
 
 
 class SpeechSegment(BaseModel):
@@ -33,8 +34,9 @@ class SpeechSegment(BaseModel):
 class AnalyzeResponse(BaseModel):
     speech_segments: list[SpeechSegment]
     occasion_verdict: str = ""
-    wardrobe_description: str
+    wardrobe_description: str = ""
     personal_appearance: str = ""
+    mirror_data: Optional[dict[str, Any]] = None
     detection: DetectionResult
     latency_ms: int
 

@@ -106,25 +106,40 @@ export function MirrorScreen() {
 
   const mirrorChatContext = result ? (result.speech_segments || []).map((s) => s.text).join('\n') : ''
 
+  const SECTION_LABELS = {
+    outfit:   'Outfit',
+    match:    'Colour Match',
+    grooming: 'Grooming',
+    overall:  'Overall',
+    top_fix:  'One Fix',
+  }
+
   return (
     <Screen title="Mirror Check" subtitle="Instant feedback — not saved.">
       <h2 ref={resultRef} tabIndex={-1} aria-label="Analysis complete." style={{ position: 'absolute', left: -9999, top: 'auto', width: 1, height: 1, overflow: 'hidden' }} />
 
-      {previewUrl && <img src={previewUrl} alt="Your outfit" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 16, maxHeight: 300, objectFit: 'cover', border: `2px solid ${COLORS.BORDER}` }} />}
+      {previewUrl && <img src={previewUrl} alt="Your appearance" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 16, maxHeight: 300, objectFit: 'cover', border: `2px solid ${COLORS.BORDER}` }} />}
 
       {result?.speech_segments?.length > 0 && (
-        <div aria-label="Full outfit analysis"
-          style={{ border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: 18, marginBottom: 20, background: COLORS.SURFACE }}>
-          {result.speech_segments.map((seg, i) => (
-            <p key={i} style={{ fontSize: 15, color: COLORS.TEXT, lineHeight: 1.8, margin: i < result.speech_segments.length - 1 ? '0 0 12px' : 0 }}>{seg.text}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+          {result.speech_segments.map((seg) => (
+            <div key={seg.id} style={{ border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, overflow: 'hidden' }}>
+              <div style={{ padding: '6px 14px', borderBottom: `2px solid ${COLORS.BORDER}`, background: COLORS.SURFACE }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.TEXT_MUTED }}>
+                  {SECTION_LABELS[seg.id] || seg.id}
+                </span>
+              </div>
+              <div style={{ padding: '12px 14px', background: COLORS.BG }}>
+                <p style={{ fontSize: 15, color: COLORS.TEXT, lineHeight: 1.8, margin: 0 }}>{seg.text}</p>
+              </div>
+            </div>
           ))}
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <BigButton label="Short Description" icon="🔊" onClick={() => speak((result?.speech_segments || []).slice(0, 3).map((s) => s.text).join('  '))} />
-        <BigButton label="Long Description" icon="📋" onClick={() => speak((result?.speech_segments || []).map((s) => s.text).join('  '))} />
-        <BigButton label="Try Again" icon="📸" variant="primary" onClick={reset} />
+        <BigButton label="Read Aloud" icon="🔊" variant="primary" onClick={() => speak((result?.speech_segments || []).map((s) => s.text).join('  '))} />
+        <BigButton label="Try Again" icon="📸" onClick={reset} />
       </div>
 
       {mirrorChatContext && <ContextChat context={mirrorChatContext} feature="mirror" speak={speak} />}

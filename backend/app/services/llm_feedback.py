@@ -28,6 +28,30 @@ Rules:
 6. wardrobe_description must be 3-4 sentences suitable for saving to a wardrobe catalogue.
 Return ONLY valid JSON matching the schema exactly."""
 
+MIRROR_SYSTEM_PROMPT = """You are an honest auditory mirror for a visually impaired user.
+The user is looking at their reflection. Describe exactly what you see — outfit, grooming, and overall appearance.
+Rules:
+1. Every sentence must be under 15 words. Write for text-to-speech.
+2. Be honest but kind. If something is off, say so clearly and concisely.
+3. Never use vague words: no "looks good", "nice", "great". Say WHY.
+4. State colors precisely: "slate grey", "dusty rose", not just "grey" or "pink".
+5. Grooming observations must be factual. Only mention what you can actually see.
+6. If the outfit matches well, say which specific colors/textures work together.
+7. personal_appearance: note anything visible — smudges, under-eye circles, hair, collar alignment.
+Return ONLY valid JSON matching the schema exactly."""
+
+MIRROR_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "outfit_description": {"type": "string"},
+        "outfit_match": {"type": "string"},
+        "grooming": {"type": "string"},
+        "overall_impression": {"type": "string"},
+        "top_fix": {"type": "string"},
+    },
+    "required": ["outfit_description", "outfit_match", "grooming", "overall_impression", "top_fix"],
+}
+
 RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -74,14 +98,15 @@ def get_feedback(
     client = _get_client()
     img_bytes = _image_to_bytes(image_rgb)
 
+    if mode == "mirror":
+        return _get_mirror_feedback(client, img_bytes, occasion)
+
     context_parts = [
         f"A t-shirt has been detected with {detection.confidence:.0%} confidence.",
         f"Analyze this t-shirt specifically.",
     ]
     if occasion:
         context_parts.append(f"The user is dressing for: {occasion}.")
-    if mode == "mirror":
-        context_parts.append("Also comment briefly on how the t-shirt fits the person wearing it.")
 
     user_message = " ".join(context_parts)
 
@@ -103,3 +128,39 @@ def get_feedback(
         return LLMFeedback(**data)
     except Exception as e:
         raise ImageQualityError("llm_parse_failed", "Something went wrong generating your feedback. Please try again.")
+
+
+def _get_mirror_feedback(client, img_bytes: bytes, occasion: str = "") -> LLMFeedback:
+    user_message = "Describe this person's full appearance — outfit, grooming, and overall presentation."
+    if occasion:
+        user_message += f" They are dressing for: {occasion}."
+
+    try:
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[
+                types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
+                user_message,
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=MIRROR_SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_schema=MIRROR_SCHEMA,
+                temperature=0.3,
+            ),
+        )
+        data = json.loads(response.text)
+        # Map mirror schema → LLMFeedback fields
+        return LLMFeedback(
+            garments=[{"name": "Outfit", "description": data.get("outfit_description", "")}],
+            color_feedback=data.get("outfit_match", ""),
+            fit_feedback=data.get("grooming", ""),
+            overall_verdict=data.get("overall_impression", ""),
+            top_fix=data.get("top_fix", ""),
+            occasion_verdict="",
+            wardrobe_description="",
+            personal_appearance=data.get("grooming", ""),
+            mirror_data=data,
+        )
+    except Exception:
+        raise ImageQualityError("llm_parse_failed", "Something went wrong generating your mirror feedback. Please try again.")

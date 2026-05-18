@@ -51,6 +51,30 @@ git config alias.push-hf '!scripts/push-hf.sh'
 
 Frontend auto-deploys to Vercel on push to `main`. Backend deploys to `rizzvision69/app-v2-space` on HuggingFace.
 
+## Commit conventions
+
+All commits must follow **Conventional Commits**:
+
+```
+<type>(<scope>): <description>
+
+feat:     new feature
+fix:      bug fix
+docs:     documentation only
+chore:    tooling, deps, config
+perf:     performance improvement
+refactor: code change that neither fixes a bug nor adds a feature
+test:     adding or updating tests
+ci:       CI/CD changes
+```
+
+Examples:
+```
+feat(scan): add back button to camera phase
+fix(tts): wrap generate() in asyncio.to_thread
+chore(deps): upgrade google-genai to 1.20.0
+```
+
 ## Architecture
 
 ### Request pipeline (backend)

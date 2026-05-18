@@ -56,9 +56,10 @@ export async function identifyItem(imageBlob, wardrobe = []) {
   return post('/identify-item', fd)
 }
 
-export async function voiceQuery(query, appContext = '') {
+export async function voiceQuery(query, appContext = '', language = 'en') {
   const fd = new FormData()
   fd.append('query', query)
   fd.append('app_context', appContext)
+  fd.append('language', language)
   return post('/voice-query', fd)
 }

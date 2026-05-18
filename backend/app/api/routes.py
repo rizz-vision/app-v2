@@ -313,14 +313,23 @@ async def identify_item(
 # Voice query
 # ---------------------------------------------------------------------------
 
+LANGUAGE_NAMES = {
+    "en": "English",
+    "hi": "Hindi",
+    "ta": "Tamil",
+}
+
 @router.post("/voice-query")
 async def voice_query(
     query: str = Form(...),
     app_context: Optional[str] = Form(""),
+    language: Optional[str] = Form("en"),
 ):
+    lang_name = LANGUAGE_NAMES.get(language or "en", "English")
     system = (
         "You are Rizzvision, a voice-first fashion assistant built for visually impaired users. "
         "The user cannot see the screen — everything you say will be read aloud by the app. "
+        f"IMPORTANT: You MUST respond in {lang_name}. Every word of your answer must be in {lang_name}. "
         "Rules:\n"
         "- Answer in 1-2 short sentences. Under 20 words each. No markdown.\n"
         "- Be warm, direct, and specific. Never say 'I cannot help with that'.\n"

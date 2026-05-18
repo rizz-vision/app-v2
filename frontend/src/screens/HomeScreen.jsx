@@ -5,7 +5,7 @@ import { useApp } from '../contexts/AppContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useVoice } from '../contexts/VoiceContext.jsx'
 import { useWardrobe } from '../contexts/WardrobeContext.jsx'
-import { SCREENS, COLORS, RESPONSES } from '../utils/constants.js'
+import { SCREENS, COLORS, LANGUAGES } from '../utils/constants.js'
 
 const NAV_ITEMS = [
   { screen: SCREENS.SCAN,     label: 'Scan',     desc: 'Analyze a t-shirt',        icon: '📸' },
@@ -16,14 +16,14 @@ const NAV_ITEMS = [
 ]
 
 export function HomeScreen() {
-  const { navigate } = useApp()
+  const { navigate, language, setLanguage } = useApp()
   const { signOut } = useAuth()
-  const { speak, isListening, isThinking, toggleListening } = useVoice()
+  const { speak, isListening, isThinking, toggleListening, t } = useVoice()
   const { items } = useWardrobe()
 
   useEffect(() => {
-    const t = setTimeout(() => speak(RESPONSES.welcome), 600)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => speak(t('welcome')), 600)
+    return () => clearTimeout(timer)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -100,6 +100,39 @@ export function HomeScreen() {
               <div style={{ paddingRight: 18, fontSize: 18, color: COLORS.TEXT_DIM }}>›</div>
             </button>
           ))}
+        </div>
+
+        {/* Language picker */}
+        <div style={{ padding: '20px 0 0', borderTop: `2px solid ${COLORS.BORDER}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.TEXT_MUTED, padding: '12px 0 10px' }}>
+            Language
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.id}
+                onClick={() => {
+                  setLanguage(lang.id)
+                  speak(lang.nativeLabel)
+                }}
+                aria-pressed={language === lang.id}
+                aria-label={`Switch to ${lang.label}`}
+                style={{
+                  flex: 1, minHeight: 48,
+                  background: language === lang.id ? COLORS.SURFACE_INVERSE : COLORS.SURFACE,
+                  border: `2px solid ${COLORS.BORDER}`,
+                  borderRadius: COLORS.RADIUS,
+                  color: language === lang.id ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT,
+                  fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+                }}
+              >
+                <span>{lang.nativeLabel}</span>
+                <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7 }}>{lang.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Sign out */}

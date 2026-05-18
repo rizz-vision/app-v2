@@ -2,12 +2,13 @@ import { createContext, useContext, useEffect, useRef, useState, useCallback } f
 import { parseCommand } from '../voice/commandParser.js'
 import { useApp } from './AppContext.jsx'
 import { voiceQuery } from '../services/api.js'
-import { SCREENS, VOICE_LOCALE, SCREEN_DESCRIPTIONS, SCREEN_HELP, RESPONSES } from '../utils/constants.js'
+import { SCREENS, SCREEN_DESCRIPTIONS, SCREEN_HELP, RESPONSES, localeForLang } from '../utils/constants.js'
 
 const VoiceContext = createContext(null)
 
 export function VoiceProvider({ children }) {
-  const { navigate, goBack, toggleDescMode, setDescMode, current } = useApp()
+  const { navigate, goBack, toggleDescMode, setDescMode, current, language } = useApp()
+  const locale = localeForLang(language)
   const [listening, setListening] = useState(false)
   const [isThinking, setIsThinking] = useState(false)
   const [transcript, setTranscript] = useState('')
@@ -23,7 +24,7 @@ export function VoiceProvider({ children }) {
     const synth = synthRef.current
     synth.cancel()
     const utt = new SpeechSynthesisUtterance(text)
-    utt.lang = VOICE_LOCALE
+    utt.lang = locale
     utt.rate = 0.95
     utt.pitch = 1
     utt.onstart = () => setIsThinking(true)
@@ -51,16 +52,22 @@ export function VoiceProvider({ children }) {
   }, [navigate])
 
   // ── fall back to /voice-query for anything the parser doesn't recognise ────
+  const r = useCallback((key, ...args) => {
+    const map = RESPONSES[language] ?? RESPONSES.en
+    const val = map[key]
+    return typeof val === 'function' ? val(...args) : val
+  }, [language])
+
   const askAssistant = useCallback(async (text) => {
-    speak(RESPONSES.thinking)
+    speak(r('thinking'))
     try {
-      const result = await voiceQuery(text, current.screen)
+      const result = await voiceQuery(text, current.screen, language)
       if (result.answer) speak(result.answer)
       if (result.command) handleApiCommand(result.command)
     } catch {
-      speak(RESPONSES.error)
+      speak(r('error'))
     }
-  }, [current.screen, speak, handleApiCommand])
+  }, [current.screen, language, speak, handleApiCommand, r])
 
   // ── process a final transcript ─────────────────────────────────────────────
   const handleFinal = useCallback((text) => {
@@ -89,12 +96,16 @@ export function VoiceProvider({ children }) {
       case 'stop_speech':
         stop()
         break
-      case 'describe_screen':
-        speak(SCREEN_DESCRIPTIONS[current.screen] || SCREEN_DESCRIPTIONS.HOME)
+      case 'describe_screen': {
+        const descs = SCREEN_DESCRIPTIONS[language] ?? SCREEN_DESCRIPTIONS.en
+        speak(descs[current.screen] ?? descs.HOME)
         break
-      case 'help':
-        speak(SCREEN_HELP[current.screen] || SCREEN_HELP.HOME)
+      }
+      case 'help': {
+        const helps = SCREEN_HELP[language] ?? SCREEN_HELP.en
+        speak(helps[current.screen] ?? helps.HOME)
         break
+      }
       case 'read_wardrobe':
         window.dispatchEvent(new CustomEvent('voiceCommand', { detail: { type: 'READ_WARDROBE' } }))
         break
@@ -114,7 +125,7 @@ export function VoiceProvider({ children }) {
     const r = new SpeechRecognition()
     r.continuous = true
     r.interimResults = true
-    r.lang = VOICE_LOCALE
+    r.lang = locale
     recognitionRef.current = r
 
     r.onstart = () => setListening(true)
@@ -141,12 +152,12 @@ export function VoiceProvider({ children }) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-attach onresult whenever handleFinal changes (screen navigation, etc.)
+  // Re-attach onresult whenever handleFinal changes (screen/language change etc.)
   // without tearing down and recreating the recognition instance
   useEffect(() => {
-    const r = recognitionRef.current
-    if (!r) return
-    r.onresult = (e) => {
+    const rec = recognitionRef.current
+    if (!rec) return
+    rec.onresult = (e) => {
       if (pausedRef.current) return
       const last = e.results[e.results.length - 1]
       const text = last[0].transcript
@@ -155,8 +166,21 @@ export function VoiceProvider({ children }) {
     }
   }, [handleFinal])
 
+  // Restart recognition with new locale when language changes
+  useEffect(() => {
+    const rec = recognitionRef.current
+    if (!rec) return
+    rec.lang = locale
+    // Stop and let the auto-restart in onend pick up the new locale
+    try { rec.stop() } catch {}
+  }, [locale])
+
+  // Expose `t` (translate) helper so screens can get localised static strings
+  // without importing RESPONSES directly
+  const t = useCallback((key, ...args) => r(key, ...args), [r])
+
   return (
-    <VoiceContext.Provider value={{ listening, isThinking, transcript, speak, stop, toggleListening }}>
+    <VoiceContext.Provider value={{ listening, isThinking, transcript, speak, stop, toggleListening, t, language: language }}>
       {children}
     </VoiceContext.Provider>
   )

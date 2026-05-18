@@ -6,6 +6,7 @@ export const SCREENS = {
   SHOPPING: 'SHOPPING',
   MIRROR: 'MIRROR',
   EDIT_ITEM: 'EDIT_ITEM',
+  IDENTIFY: 'IDENTIFY',
   AUTH: 'AUTH',
 }
 

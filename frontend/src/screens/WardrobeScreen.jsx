@@ -91,8 +91,9 @@ export function WardrobeScreen() {
         ))}
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
         <BigButton label="Read My Wardrobe" hint="Hear all items read aloud" icon="🔊" onClick={readAll} />
+        <BigButton label="Identify Item" hint="Hold up an item to find it in your wardrobe" icon="🔍" onClick={() => navigate(SCREENS.IDENTIFY)} />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

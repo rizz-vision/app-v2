@@ -15,6 +15,16 @@ jobs:
       contents: read
 
     steps:
+      - name: Check HF_TOKEN secret
+        run: |
+          if [ -z "${{ secrets.HF_TOKEN }}" ]; then
+            echo "❌ HF_TOKEN secret is not set."
+            echo "Go to: GitHub repo → Settings → Secrets and variables → Actions → New repository secret"
+            echo "Name: HF_TOKEN  |  Value: your HuggingFace write token (huggingface.co/settings/tokens)"
+            exit 1
+          fi
+          echo "✓ HF_TOKEN is set"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -26,17 +36,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Configure HuggingFace credentials
-        run: |
-          git config --global credential.helper store
-          echo "https://rizzvision69:${{ secrets.HF_TOKEN }}@huggingface.co" >> ~/.git-credentials
-
-      - name: Add HuggingFace remote
-        run: |
-          git remote add hf-space https://huggingface.co/spaces/rizzvision69/app-v2-space
-
       - name: Install Git LFS
         run: git lfs install --system
+
+      - name: Add HuggingFace remote (with token)
+        run: |
+          git remote add hf-space https://rizzvision69:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/rizzvision69/app-v2-space
 
       - name: Deploy to HuggingFace Spaces
         run: bash scripts/push-hf.sh hf-space

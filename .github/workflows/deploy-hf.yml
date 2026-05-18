@@ -1,0 +1,36 @@
+name: Deploy backend to HuggingFace Spaces
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'scripts/push-hf.sh'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add HuggingFace remote
+        run: |
+          git remote add hf-space https://rizzvision69:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/rizzvision69/app-v2-space
+
+      - name: Install Git LFS
+        run: git lfs install
+
+      - name: Deploy to HuggingFace Spaces
+        run: bash scripts/push-hf.sh hf-space

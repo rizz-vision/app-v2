@@ -26,7 +26,7 @@ TSHIRT_CATEGORIES = {1, 2}   # 1=short sleeve top, 2=long sleeve top
 # Remaining DF2 categories → negative class
 NOT_TSHIRT_CATEGORIES = {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 
-TARGET_PER_CLASS = 16_000   # 16K train per class
+TARGET_PER_CLASS = 20_000   # 20K train per class
 VAL_PER_CLASS = 2_000
 TEST_PER_CLASS = 2_000
 

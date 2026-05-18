@@ -1,7 +1,13 @@
 FROM python:3.11-slim
 
-# OpenCV dependency
-RUN apt-get update && apt-get install -y libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+# OpenCV + audio (libsndfile for soundfile) + espeak-ng (Kokoro phonemizer + Tamil TTS fallback)
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libglib2.0-0 \
+    libsndfile1 \
+    espeak-ng \
+    espeak-ng-data \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

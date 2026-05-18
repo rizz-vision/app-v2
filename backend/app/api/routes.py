@@ -1,7 +1,9 @@
 import time
-from fastapi import APIRouter, File, UploadFile, Form
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from fastapi.responses import Response
 from typing import Optional
 from app.services import image_ingestion, tshirt_detector, llm_feedback, response_shaper
+from app.services import tts_service
 from app.models.schemas import AnalyzeResponse, QuickScanResponse
 from app.core.config import GEMINI_MODEL
 from app.errors.handlers import ImageQualityError
@@ -359,3 +361,27 @@ async def voice_query(
         ),
     )
     return json.loads(response.text)
+
+
+# ---------------------------------------------------------------------------
+# TTS — Kokoro (en/hi) + espeak-ng fallback (ta)
+# ---------------------------------------------------------------------------
+
+@router.post("/tts")
+async def text_to_speech(
+    text: str = Form(...),
+    language: Optional[str] = Form("en"),
+):
+    """
+    Returns WAV audio for the given text.
+    en/hi → Kokoro neural voice
+    ta    → espeak-ng (Kokoro has no Tamil support)
+    """
+    try:
+        wav_bytes = tts_service.generate(text, language or "en")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"TTS failed: {exc}")
+
+    return Response(content=wav_bytes, media_type="audio/wav")

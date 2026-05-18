@@ -4,6 +4,8 @@ import { useApp } from './AppContext.jsx'
 import { voiceQuery } from '../services/api.js'
 import { SCREENS, SCREEN_DESCRIPTIONS, SCREEN_HELP, RESPONSES, localeForLang } from '../utils/constants.js'
 
+const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
 const VoiceContext = createContext(null)
 
 export function VoiceProvider({ children }) {
@@ -13,14 +15,30 @@ export function VoiceProvider({ children }) {
   const [isThinking, setIsThinking] = useState(false)
   const [transcript, setTranscript] = useState('')
   const recognitionRef = useRef(null)
+  const audioRef = useRef(null)        // current HTMLAudioElement (Kokoro path)
   const synthRef = useRef(window.speechSynthesis)
   const pausedRef = useRef(false)
   const lastSpokenRef = useRef('')
 
-  // ── speak ──────────────────────────────────────────────────────────────────
-  const speak = useCallback((text) => {
-    if (!text) return
-    lastSpokenRef.current = text
+  // ── helpers ────────────────────────────────────────────────────────────────
+  const r = useCallback((key, ...args) => {
+    const map = RESPONSES[language] ?? RESPONSES.en
+    const val = map[key]
+    return typeof val === 'function' ? val(...args) : val
+  }, [language])
+
+  // ── stop any current speech (both paths) ──────────────────────────────────
+  const stop = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    synthRef.current?.cancel()
+    setIsThinking(false)
+  }, [])
+
+  // ── Web Speech API fallback ───────────────────────────────────────────────
+  const _fallbackSpeak = useCallback((text) => {
     const synth = synthRef.current
     synth.cancel()
     const utt = new SpeechSynthesisUtterance(text)
@@ -31,17 +49,47 @@ export function VoiceProvider({ children }) {
     utt.onend = () => setIsThinking(false)
     utt.onerror = () => setIsThinking(false)
     synth.speak(utt)
-  }, [])
+  }, [locale])
 
-  const stop = useCallback(() => {
-    synthRef.current?.cancel()
-    setIsThinking(false)
-  }, [])
+  // ── primary speak — Kokoro via /tts, fallback to Web Speech API ───────────
+  const speak = useCallback(async (text) => {
+    if (!text) return
+    lastSpokenRef.current = text
+    stop()
+
+    try {
+      const fd = new FormData()
+      fd.append('text', text)
+      fd.append('language', language)
+      const res = await fetch(`${BASE}/tts`, { method: 'POST', body: fd })
+      if (!res.ok) throw new Error(`TTS ${res.status}`)
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audioRef.current = audio
+      setIsThinking(true)
+      audio.onended = () => {
+        setIsThinking(false)
+        URL.revokeObjectURL(url)
+        if (audioRef.current === audio) audioRef.current = null
+      }
+      audio.onerror = () => {
+        setIsThinking(false)
+        URL.revokeObjectURL(url)
+        if (audioRef.current === audio) audioRef.current = null
+      }
+      audio.play()
+    } catch {
+      // /tts unavailable (local dev without backend, or network error) → fallback
+      _fallbackSpeak(text)
+    }
+  }, [language, stop, _fallbackSpeak])
 
   const toggleListening = useCallback(() => {
-    const r = recognitionRef.current
-    if (!r) return
-    if (listening) { r.stop() } else { try { r.start() } catch {} }
+    const rec = recognitionRef.current
+    if (!rec) return
+    if (listening) { rec.stop() } else { try { rec.start() } catch {} }
   }, [listening])
 
   // ── handle navigation commands returned from the API ───────────────────────
@@ -51,13 +99,7 @@ export function VoiceProvider({ children }) {
     if (SCREENS[key]) navigate(SCREENS[key])
   }, [navigate])
 
-  // ── fall back to /voice-query for anything the parser doesn't recognise ────
-  const r = useCallback((key, ...args) => {
-    const map = RESPONSES[language] ?? RESPONSES.en
-    const val = map[key]
-    return typeof val === 'function' ? val(...args) : val
-  }, [language])
-
+  // ── AI assistant fallback for unrecognised speech ─────────────────────────
   const askAssistant = useCallback(async (text) => {
     speak(r('thinking'))
     try {
@@ -74,7 +116,6 @@ export function VoiceProvider({ children }) {
     const cmd = parseCommand(text)
 
     if (!cmd) {
-      // Nothing matched locally → hand off to the AI assistant
       askAssistant(text)
       return
     }
@@ -115,45 +156,44 @@ export function VoiceProvider({ children }) {
       default:
         window.dispatchEvent(new CustomEvent('voiceCommand', { detail: cmd }))
     }
-  }, [navigate, goBack, toggleDescMode, setDescMode, speak, stop, askAssistant, current.screen])
+  }, [navigate, goBack, toggleDescMode, setDescMode, speak, stop, askAssistant, language, current.screen])
 
   // ── SpeechRecognition — always-on, auto-restarts on end ───────────────────
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) return
 
-    const r = new SpeechRecognition()
-    r.continuous = true
-    r.interimResults = true
-    r.lang = locale
-    recognitionRef.current = r
+    const rec = new SpeechRecognition()
+    rec.continuous = true
+    rec.interimResults = true
+    rec.lang = locale
+    recognitionRef.current = rec
 
-    r.onstart = () => setListening(true)
-    r.onend = () => {
+    rec.onstart = () => setListening(true)
+    rec.onend = () => {
       setListening(false)
-      if (!pausedRef.current) setTimeout(() => { try { r.start() } catch {} }, 300)
+      if (!pausedRef.current) setTimeout(() => { try { rec.start() } catch {} }, 300)
     }
-    r.onerror = (e) => {
+    rec.onerror = (e) => {
       if (e.error !== 'no-speech') console.warn('SpeechRecognition error:', e.error)
     }
 
-    r.start()
+    rec.start()
 
-    const pause = () => { pausedRef.current = true; r.stop() }
-    const resume = () => { pausedRef.current = false; try { r.start() } catch {} }
+    const pause = () => { pausedRef.current = true; rec.stop() }
+    const resume = () => { pausedRef.current = false; try { rec.start() } catch {} }
     window.addEventListener('pauseGlobalVoice', pause)
     window.addEventListener('resumeGlobalVoice', resume)
 
     return () => {
-      r.onend = null
-      r.stop()
+      rec.onend = null
+      rec.stop()
       window.removeEventListener('pauseGlobalVoice', pause)
       window.removeEventListener('resumeGlobalVoice', resume)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-attach onresult whenever handleFinal changes (screen/language change etc.)
-  // without tearing down and recreating the recognition instance
+  // Re-attach onresult whenever handleFinal changes (screen/language)
   useEffect(() => {
     const rec = recognitionRef.current
     if (!rec) return
@@ -171,16 +211,13 @@ export function VoiceProvider({ children }) {
     const rec = recognitionRef.current
     if (!rec) return
     rec.lang = locale
-    // Stop and let the auto-restart in onend pick up the new locale
     try { rec.stop() } catch {}
   }, [locale])
 
-  // Expose `t` (translate) helper so screens can get localised static strings
-  // without importing RESPONSES directly
   const t = useCallback((key, ...args) => r(key, ...args), [r])
 
   return (
-    <VoiceContext.Provider value={{ listening, isThinking, transcript, speak, stop, toggleListening, t, language: language }}>
+    <VoiceContext.Provider value={{ listening, isThinking, transcript, speak, stop, toggleListening, t, language }}>
       {children}
     </VoiceContext.Provider>
   )

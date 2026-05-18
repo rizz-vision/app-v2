@@ -22,15 +22,20 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Configure HuggingFace credentials
+        run: |
+          git config --global credential.helper store
+          echo "https://rizzvision69:${{ secrets.HF_TOKEN }}@huggingface.co" >> ~/.git-credentials
 
       - name: Add HuggingFace remote
         run: |
-          git remote add hf-space https://rizzvision69:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/rizzvision69/app-v2-space
+          git remote add hf-space https://huggingface.co/spaces/rizzvision69/app-v2-space
 
       - name: Install Git LFS
-        run: git lfs install
+        run: git lfs install --system
 
       - name: Deploy to HuggingFace Spaces
         run: bash scripts/push-hf.sh hf-space

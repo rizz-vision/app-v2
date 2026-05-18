@@ -1,3 +1,4 @@
+import asyncio
 import time
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from fastapi.responses import Response
@@ -41,8 +42,8 @@ async def analyze(
     raw = await image.read()
 
     image_rgb = image_ingestion.ingest(raw)
-    detection = tshirt_detector.detect(image_rgb)
-    feedback = llm_feedback.get_feedback(image_rgb, detection, occasion=occasion or "", mode=mode or "")
+    detection = await asyncio.to_thread(tshirt_detector.detect, image_rgb)
+    feedback = llm_feedback.get_feedback(image_rgb, detection, occasion=(occasion or "")[:200], mode=(mode or "")[:50])
     segments = response_shaper.shape(feedback, mode=mode or "")
 
     return AnalyzeResponse(
@@ -451,13 +452,10 @@ async def text_to_speech(
     text: str = Form(...),
     language: Optional[str] = Form("en"),
 ):
-    """
-    Returns WAV audio for the given text.
-    en/hi → Kokoro neural voice
-    ta    → espeak-ng (Kokoro has no Tamil support)
-    """
+    if len(text) > 1000:
+        raise HTTPException(status_code=400, detail="Text too long for TTS (max 1000 chars)")
     try:
-        wav_bytes = tts_service.generate(text, language or "en")
+        wav_bytes = await asyncio.to_thread(tts_service.generate, text, language or "en")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:

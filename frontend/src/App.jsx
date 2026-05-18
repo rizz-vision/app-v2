@@ -2,6 +2,7 @@ import { useApp } from './contexts/AppContext.jsx'
 import { useAuth } from './contexts/AuthContext.jsx'
 import { LiveRegions } from './components/LiveRegions.jsx'
 import { PermissionsGate } from './components/PermissionsGate.jsx'
+import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import { SCREENS } from './utils/constants.js'
 
 import { HomeScreen } from './screens/HomeScreen.jsx'
@@ -43,10 +44,12 @@ export default function App() {
 
   return (
     <PermissionsGate>
-      <div style={{ height: '100%', position: 'relative' }}>
-        <LiveRegions />
-        <Screen name={current.screen} />
-      </div>
+      <ErrorBoundary>
+        <div style={{ height: '100%', position: 'relative' }}>
+          <LiveRegions />
+          <Screen name={current.screen} />
+        </div>
+      </ErrorBoundary>
     </PermissionsGate>
   )
 }

@@ -39,3 +39,9 @@ app.include_router(router)
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "2.0.0"}
+
+
+# HuggingFace Spaces pings /?logs=container — return 200 to suppress log noise
+@app.get("/")
+def root():
+    return {"status": "ok"}

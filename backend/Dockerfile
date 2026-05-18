@@ -20,6 +20,10 @@ COPY . .
 
 ENV HOST=0.0.0.0
 ENV PORT=7860
+# HF_TOKEN is injected from Space secrets — authenticates Kokoro model downloads
+# and avoids anonymous rate limits. Set it in Space Settings → Repository secrets.
+ARG HF_TOKEN
+ENV HF_TOKEN=${HF_TOKEN}
 
 EXPOSE 7860
 

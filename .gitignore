@@ -36,6 +36,9 @@ frontend/.vite/
 .vscode/
 .idea/
 
+# Claude Code worktrees
+.claude/worktrees/
+
 # Kaggle credentials
 kaggle.json
 frontend/.env.production

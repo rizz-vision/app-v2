@@ -1,3 +1,4 @@
 {
-  "threshold": 0.71
+  "threshold": 0.615,
+  "fpr_cap": 0.04
 }

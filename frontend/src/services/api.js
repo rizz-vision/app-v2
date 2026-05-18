@@ -71,10 +71,11 @@ export async function identifyItem(imageBlob, wardrobe = []) {
   return post('/identify-item', fd, TIMEOUTS.analyze)
 }
 
-export async function voiceQuery(query, appContext = '', language = 'en') {
+export async function voiceQuery(query, appContext = '', language = 'en', wardrobeContext = '') {
   const fd = new FormData()
   fd.append('query', query.slice(0, 500))
-  fd.append('app_context', appContext.slice(0, 100))
+  fd.append('app_context', appContext.slice(0, 200))
   fd.append('language', language.slice(0, 10))
+  fd.append('wardrobe_context', wardrobeContext.slice(0, 2000))
   return post('/voice-query', fd)
 }

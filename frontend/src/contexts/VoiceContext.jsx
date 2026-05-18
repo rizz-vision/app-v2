@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { parseCommand } from '../voice/commandParser.js'
 import { useApp } from './AppContext.jsx'
+import { useWardrobe } from './WardrobeContext.jsx'
 import { voiceQuery } from '../services/api.js'
 import { SCREENS, SCREEN_DESCRIPTIONS, SCREEN_HELP, RESPONSES, localeForLang } from '../utils/constants.js'
 
@@ -10,6 +11,7 @@ const VoiceContext = createContext(null)
 
 export function VoiceProvider({ children }) {
   const { navigate, goBack, toggleDescMode, setDescMode, current, language } = useApp()
+  const { items: wardrobeItems } = useWardrobe()
   const locale = localeForLang(language)
   const [listening, setListening] = useState(false)
   const [isThinking, setIsThinking] = useState(false)
@@ -103,13 +105,16 @@ export function VoiceProvider({ children }) {
   const askAssistant = useCallback(async (text) => {
     speak(r('thinking'))
     try {
-      const result = await voiceQuery(text, current.screen, language)
+      const wardrobeCtx = wardrobeItems.length > 0
+        ? `Wardrobe has ${wardrobeItems.length} items: ` + wardrobeItems.slice(0, 20).map((i) => `${i.name} (${i.category})`).join(', ')
+        : 'Wardrobe is empty.'
+      const result = await voiceQuery(text, current.screen, language, wardrobeCtx)
       if (result.answer) speak(result.answer)
       if (result.command) handleApiCommand(result.command)
     } catch {
       speak(r('error'))
     }
-  }, [current.screen, language, speak, handleApiCommand, r])
+  }, [current.screen, language, wardrobeItems, speak, handleApiCommand, r])
 
   // ── process a final transcript ─────────────────────────────────────────────
   const handleFinal = useCallback((text) => {

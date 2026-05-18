@@ -54,16 +54,39 @@ export const CATEGORIES = [
 ]
 
 export const RESPONSES = {
-  welcome: 'Welcome to Rizzvision. Tap Scan to analyze a t-shirt.',
-  scanReady: 'Point the camera at a t-shirt and tap capture.',
+  welcome: 'Welcome to Rizzvision. Say scan, wardrobe, outfit, shopping, or mirror to get started.',
+  scanReady: 'Point the camera at a clothing item and tap capture, or say capture.',
   mirrorReady: 'Point the camera at your full outfit and tap capture.',
   mirrorAnalyzing: 'Analyzing your outfit. One moment.',
   outfitPrompt: 'What occasion are you dressing for?',
   generating: 'Working on your outfit suggestion.',
-  wardrobeEmpty: 'Your wardrobe is empty. Scan some items to get started.',
+  wardrobeEmpty: 'Your wardrobe is empty. Say scan to add your first item.',
   wardrobeCount: (n) => `You have ${n} item${n !== 1 ? 's' : ''} in your wardrobe.`,
   saved: (name) => `${name} saved to your wardrobe.`,
   itemDeleted: (name) => `${name} removed from your wardrobe.`,
   itemUpdated: (name) => `${name} updated.`,
   error: 'Something went wrong. Please try again.',
+  thinking: 'One moment.',
+}
+
+export const SCREEN_DESCRIPTIONS = {
+  HOME:      'You are on the home screen. Say scan, wardrobe, outfit, shopping, or mirror.',
+  SCAN:      'You are on the scan screen. Point the camera at a clothing item and tap capture. I will identify it and you can save it to your wardrobe.',
+  WARDROBE:  'You are in your wardrobe. Say read all items to hear everything saved, or tap an item to hear its description.',
+  OUTFIT:    'You are on the outfit screen. Tell me the occasion and I will suggest combinations from your wardrobe.',
+  SHOPPING:  'You are on the shopping screen. Point the camera at an item you are considering buying and I will tell you how it fits your wardrobe.',
+  MIRROR:    'You are on the mirror screen. Point the camera at your full outfit for complete feedback.',
+  EDIT_ITEM: 'You are editing a wardrobe item. You can update the name and category.',
+  AUTH:      'You are on the sign in screen.',
+}
+
+export const SCREEN_HELP = {
+  HOME:      'You can say: scan, wardrobe, outfit, shopping, mirror, or ask me any fashion question.',
+  SCAN:      'You can say: capture, go back, or ask me anything about the item.',
+  WARDROBE:  'You can say: read all items, go back, or tap an item to hear its description.',
+  OUTFIT:    'Say the occasion out loud, then say generate.',
+  SHOPPING:  'You can say: capture, go back, or ask whether this item suits your wardrobe.',
+  MIRROR:    'You can say: capture, go back, or ask about your outfit.',
+  EDIT_ITEM: 'You can say: save or go back.',
+  AUTH:      'Enter your email and password to sign in.',
 }

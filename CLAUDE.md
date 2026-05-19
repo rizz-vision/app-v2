@@ -39,8 +39,8 @@ python ml/curate_dataset.py --df2-path /path/to/deepfashion2
 # Recalibrate detection threshold without retraining (run notebook)
 ml/recalibrate_threshold.ipynb
 
-# Training happens on Kaggle GPU via ml/kaggle_train.ipynb
-# Download artifacts → backend/model/tshirt_classifier.keras + backend/model/threshold.json
+# Training happens on Kaggle GPU via ml/v2/kaggle_train.ipynb
+# Download artifacts → backend/model/clothing_classifier_v2.keras + backend/model/thresholds_v2.json
 ```
 
 ### Deployment
@@ -140,16 +140,20 @@ The `.github/workflows/hf-keepalive.yml` workflow remains as a **backup only** �
 ```
 POST /analyze
   → image_ingestion.ingest()     # decode, EXIF-rotate, validate dims/brightness/sharpness
-  → tshirt_detector.detect()     # EfficientNetB3 → confidence vs threshold → reject if not t-shirt
+  → clothing_detector.detect()   # EfficientNetB3 3-class → tops/bottoms/other → reject if other or low confidence
   → llm_feedback.get_feedback()  # Gemini multimodal → structured JSON (RESPONSE_SCHEMA)
   → response_shaper.shape()      # LLMFeedback → list[SpeechSegment] (TTS-ready text)
   → AnalyzeResponse
 ```
 
-Other endpoints (`/quick-scan`, `/outfit-suggestion`, `/context-chat`, `/identify-item`, `/voice-query`) call Gemini directly — they skip the t-shirt detector gate.
+Other endpoints (`/quick-scan`, `/outfit-suggestion`, `/context-chat`, `/identify-item`, `/voice-query`) call Gemini directly — they skip the clothing detector gate.
 
 ### Model loading
-`tshirt_detector.py` lazy-loads the Keras model and threshold on the first request. The threshold (default 0.87) is read from `backend/model/threshold.json`; the `.keras` file is stored in Git LFS and deployed via `scripts/push-hf.sh`.
+`clothing_detector.py` lazy-loads the Keras model and per-class thresholds on the first request. Thresholds are read from `backend/model/thresholds_v2.json` (`tops: 0.91`, `bottoms: 0.70`, `other: 0.85`). The `.keras` file is stored in Git LFS and deployed via `scripts/push-hf.sh`.
+
+### LLM model split
+- `/analyze` and `/mirror` use `gemini-2.5-pro` (better descriptions, category-aware prompts)
+- All other endpoints use `gemini-2.5-flash` (speed + cost)
 
 ### Frontend navigation
 Single-page app with no router. `AppContext` holds `current.screen`; `App.jsx` switches between screen components. Screens: Home, Scan, Mirror, Wardrobe, Outfit, Shopping, EditItem, Auth.

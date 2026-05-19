@@ -14,7 +14,6 @@ USER_MESSAGES = {
     "too_dark": "The photo is too dark. Please move to a brighter area and try again.",
     "too_bright": "The photo is overexposed. Please reduce glare and try again.",
     "blurry": "The photo is blurry. Please hold the camera steady and try again.",
-    "not_a_tshirt": "I can only analyze t-shirts. Please hold up a t-shirt and try again.",  # legacy
     "not_clothing": "I could not identify a clothing item. Please hold up a top or bottom and try again.",
     "low_confidence": "The image is not clear enough to identify the clothing. Please try again with better lighting.",
     "llm_parse_failed": "Something went wrong generating your feedback. Please try again.",

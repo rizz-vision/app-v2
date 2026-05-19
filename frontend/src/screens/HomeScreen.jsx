@@ -8,7 +8,7 @@ import { useWardrobe } from '../contexts/WardrobeContext.jsx'
 import { SCREENS, COLORS, LANGUAGES } from '../utils/constants.js'
 
 const NAV_ITEMS = [
-  { screen: SCREENS.SCAN,     label: 'Scan',        desc: 'Analyze a t-shirt',           icon: '📸' },
+  { screen: SCREENS.SCAN,     label: 'Scan',        desc: 'Analyze a clothing item',      icon: '📸' },
   { screen: SCREENS.OUTFIT,   label: 'Outfit',      desc: 'Get a suggestion',             icon: '👔' },
   { screen: SCREENS.WARDROBE, label: 'Wardrobe',    desc: 'Browse saved items',           icon: '🗄️' },
   { screen: SCREENS.SHOPPING, label: 'Shopping',    desc: 'Check before you buy',         icon: '🛍️' },

@@ -79,11 +79,10 @@ git config alias.push-hf '!scripts/push-hf.sh'
 # 1. Curate dataset from DeepFashion v2
 python ml/curate_dataset.py --df2-path /path/to/deepfashion2
 
-# 2. Train on Kaggle GPU — open ml/kaggle_train.ipynb on Kaggle
-#    or use ml/colab_train.ipynb on Google Colab (recommended)
+# 2. Train on Kaggle GPU — open ml/v2/kaggle_train.ipynb on Kaggle
 
-# 3. Download artifacts → backend/model/tshirt_classifier.keras
-#                       → backend/model/threshold.json
+# 3. Download artifacts → backend/model/clothing_classifier_v2.keras
+#                       → backend/model/thresholds_v2.json
 ```
 
 ## Architecture notes
@@ -91,7 +90,7 @@ python ml/curate_dataset.py --df2-path /path/to/deepfashion2
 ### Backend request pipeline (`/analyze`)
 ```
 image_ingestion.ingest()    # decode, EXIF-rotate, validate dims/brightness/sharpness
-tshirt_detector.detect()    # EfficientNetB3 → confidence vs threshold → reject if not clothing
+clothing_detector.detect()  # EfficientNetB3 3-class → tops/bottoms/other → reject if other or low confidence
 llm_feedback.get_feedback() # Gemini multimodal → structured JSON
 response_shaper.shape()     # → list[SpeechSegment] (TTS-ready text)
 ```

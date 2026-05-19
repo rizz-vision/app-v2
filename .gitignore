@@ -15,11 +15,12 @@ dist/
 !*.env.example
 !.env.example
 
-# Model artifacts (large — commit only final trained model)
+# Model artifacts (large — deployed via Git LFS in push-hf.sh)
 backend/model/*.keras
 backend/model/*.h5
-# keep threshold.json (small, versioned)
+# keep threshold files (small, versioned)
 !backend/model/threshold.json
+!backend/model/thresholds_v2.json
 
 # Dataset (never commit)
 data/

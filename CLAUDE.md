@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Command execution rules
+
+- **Prefer terminal instructions over self-running commands.** For any operation the user can run themselves (installs, uploads, training, deploys), provide the command and let the user run it rather than executing it directly.
+- **For any command Claude does run that is estimated to take over 1 minute**, provide a `curl` or shell one-liner the user can paste into a separate terminal to track progress or verify the result. Example: if running a dataset upload, provide `curl -s https://www.kaggle.com/api/v1/datasets/nitin2807/xyz | jq .status` so the user can monitor it independently.
+
 ## About this app
 
 Rizzvision is a **voice-first fashion assistant for visually impaired users**. The entire UX is designed around audio feedback — every screen announces itself on load, every action has a spoken response, and the microphone is always-on. When making changes to any user-facing text, API responses, or UI flows, assume the user cannot see the screen. All text must be TTS-friendly: short sentences, no markdown, no emoji in spoken strings.

@@ -113,6 +113,27 @@ fix(tts): wrap generate() in asyncio.to_thread
 chore(deps): upgrade google-genai to 1.20.0
 ```
 
+## HuggingFace Space — Keep-Alive Setup
+
+The HF Space sleeps after ~15 min of inactivity. GitHub Actions cron is unreliable for frequent pings (runs get skipped under load or repo inactivity). Use **UptimeRobot** as the primary keep-alive:
+
+### UptimeRobot (primary — free)
+1. Sign in at https://uptimerobot.com with `team.rizzvision@gmail.com`
+2. **Add New Monitor**:
+   - Monitor type: `HTTP(s)`
+   - Friendly name: `Rizzvision HF Space`
+   - URL: `https://rizzvision69-app-v2-space.hf.space/health`
+   - Monitoring interval: `5 minutes`
+   - Alert contacts: add email
+3. Save — done. UptimeRobot pings every 5 min guaranteed.
+
+### cron-job.org (alternative — free)
+1. Sign up at https://cron-job.org
+2. Create job → URL: `https://rizzvision69-app-v2-space.hf.space/health`
+3. Schedule: every 5 minutes, method: GET
+
+The `.github/workflows/hf-keepalive.yml` workflow remains as a **backup only** — it fires on GitHub's best-effort schedule but should not be relied upon as the sole keep-alive.
+
 ## Architecture
 
 ### Request pipeline (backend)

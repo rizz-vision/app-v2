@@ -1,0 +1,12 @@
+{
+  "thresholds": {
+    "tops": 0.91,
+    "bottoms": 0.7,
+    "other": 0.85
+  },
+  "classes": [
+    "tops",
+    "bottoms",
+    "other"
+  ]
+}

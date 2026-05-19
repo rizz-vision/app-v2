@@ -3,9 +3,10 @@ from typing import Optional, Any
 
 
 class DetectionResult(BaseModel):
-    is_tshirt: bool
+    is_clothing: bool
+    category: str           # "tops", "bottoms", or "other"
     confidence: float
-    model_version: str = "efficientnetb3-tshirt-v1"
+    model_version: str = "efficientnetb3-clothing-v2"
     threshold_used: float
 
 

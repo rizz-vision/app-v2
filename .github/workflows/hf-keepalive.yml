@@ -1,8 +1,24 @@
-name: HuggingFace Space keep-alive
+# ⚠️  BACKUP ONLY — GitHub Actions cron is unreliable for frequent pings
+#     (runs get skipped during GH infra load or repo inactivity).
+#
+# PRIMARY keep-alive is UptimeRobot (free):
+#   → https://uptimerobot.com
+#   → Monitor type: HTTP(s)
+#   → URL: https://rizzvision69-app-v2-space.hf.space/health
+#   → Interval: every 5 minutes
+#   → Alert contact: team.rizzvision@gmail.com
+#
+# Fallback option — cron-job.org (free):
+#   → https://cron-job.org
+#   → URL: https://rizzvision69-app-v2-space.hf.space/health
+#   → Schedule: every 5 minutes
+#   → Request method: GET
+
+name: HuggingFace Space keep-alive (backup)
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # every 5 minutes — prevents HF Space from sleeping
+    - cron: '*/5 * * * *'  # best-effort — GH Actions does not guarantee this interval
   workflow_dispatch:        # manual trigger from Actions tab
 
 jobs:

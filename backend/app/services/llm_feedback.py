@@ -102,8 +102,8 @@ def get_feedback(
         return _get_mirror_feedback(client, img_bytes, occasion)
 
     context_parts = [
-        f"A t-shirt has been detected with {detection.confidence:.0%} confidence.",
-        f"Analyze this t-shirt specifically.",
+        f"A clothing item ({detection.category}) has been detected with {detection.confidence:.0%} confidence.",
+        f"Analyze this {detection.category[:-1] if detection.category.endswith('s') else detection.category} specifically.",
     ]
     if occasion:
         context_parts.append(f"The user is dressing for: {occasion}.")

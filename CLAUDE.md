@@ -51,6 +51,39 @@ git config alias.push-hf '!scripts/push-hf.sh'
 
 Frontend auto-deploys to Vercel on push to `main`. Backend deploys to `rizzvision69/app-v2-space` on HuggingFace.
 
+## Context / Compaction Protocol
+
+**Never use Claude's built-in conversation compaction.** When a session grows long or context needs to be handed off, create a handoff document instead:
+
+1. Write `.claude/handoff-YYYY-MM-DD.md` in this repo (see template below)
+2. Commit it: `git commit -m "docs(claude): session handoff YYYY-MM-DD"`
+3. Push to `origin main` — the next session starts by reading that file
+
+### Handoff document template
+```markdown
+# Claude Handoff — YYYY-MM-DD
+
+## What was being worked on
+<active task, file paths, what's done and what's next>
+
+## Decisions made this session
+<key choices, why, any trade-offs>
+
+## Pending / incomplete
+<what still needs doing, in order>
+
+## Gotchas to remember
+<bugs found, env quirks, non-obvious facts>
+
+## Last commit
+<git log --oneline -3 output>
+```
+
+All team members using Claude should read the latest handoff file at the start of each session:
+```
+cat .claude/handoff-*.md | tail -200
+```
+
 ## Commit conventions
 
 All commits must follow **Conventional Commits**:

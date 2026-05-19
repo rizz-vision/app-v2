@@ -21,6 +21,7 @@ export function VoiceProvider({ children }) {
   const synthRef = useRef(window.speechSynthesis)
   const pausedRef = useRef(false)
   const lastSpokenRef = useRef('')
+  const fatalErrorRef = useRef(false)  // set true on not-allowed; cleared on manual tap
 
   // ── helpers ────────────────────────────────────────────────────────────────
   const r = useCallback((key, ...args) => {
@@ -91,7 +92,12 @@ export function VoiceProvider({ children }) {
   const toggleListening = useCallback(() => {
     const rec = recognitionRef.current
     if (!rec) return
-    if (listening) { rec.stop() } else { try { rec.start() } catch {} }
+    if (listening) {
+      rec.stop()
+    } else {
+      fatalErrorRef.current = false   // user explicitly requesting mic — clear any fatal error
+      try { rec.start() } catch {}
+    }
   }, [listening])
 
   // ── handle navigation commands returned from the API ───────────────────────
@@ -176,16 +182,23 @@ export function VoiceProvider({ children }) {
 
     let backoff = 300      // ms — doubles on each consecutive failure, caps at 10s
     let restartTimer = null
+    // Fatal errors — do not restart, require user to tap mic manually
+    const FATAL_ERRORS = new Set(['not-allowed', 'service-not-allowed', 'audio-capture'])
 
-    rec.onstart = () => { setListening(true); backoff = 300 }
+    rec.onstart = () => { setListening(true); backoff = 300; fatalErrorRef.current = false }
     rec.onend = () => {
       setListening(false)
-      if (pausedRef.current) return
+      if (pausedRef.current || fatalErrorRef.current) return
       restartTimer = setTimeout(() => { try { rec.start() } catch {} }, backoff)
       backoff = Math.min(backoff * 2, 10_000)
     }
     rec.onerror = (e) => {
-      if (e.error !== 'no-speech') console.warn('SpeechRecognition error:', e.error)
+      if (FATAL_ERRORS.has(e.error)) {
+        fatalErrorRef.current = true
+        console.warn('SpeechRecognition: fatal error —', e.error, '— mic disabled until user taps')
+      } else if (e.error !== 'no-speech') {
+        console.warn('SpeechRecognition error:', e.error)
+      }
     }
 
     rec.start()

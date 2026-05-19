@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from fastapi.responses import Response
 from typing import Optional
-from app.services import image_ingestion, tshirt_detector, llm_feedback, response_shaper
+from app.services import image_ingestion, clothing_detector, llm_feedback, response_shaper
 from app.services import tts_service
 from app.models.schemas import AnalyzeResponse, QuickScanResponse
 from app.core.config import GEMINI_MODEL
@@ -42,7 +42,7 @@ async def analyze(
     raw = await image.read()
 
     image_rgb = image_ingestion.ingest(raw)
-    detection = await asyncio.to_thread(tshirt_detector.detect, image_rgb)
+    detection = await asyncio.to_thread(clothing_detector.detect, image_rgb)
     feedback = llm_feedback.get_feedback(image_rgb, detection, occasion=(occasion or "")[:200], mode=(mode or "")[:50])
     segments = response_shaper.shape(feedback, mode=mode or "")
 
@@ -93,7 +93,7 @@ async def quick_scan(image: UploadFile = File(...)):
     raw = await image.read()
 
     image_rgb = image_ingestion.ingest(raw)
-    await asyncio.to_thread(tshirt_detector.detect, image_rgb)
+    await asyncio.to_thread(clothing_detector.detect, image_rgb)
 
     img = Image.open(io.BytesIO(raw)).convert("RGB")
     buf = io.BytesIO()

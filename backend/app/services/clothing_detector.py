@@ -2,7 +2,7 @@ import json
 import cv2
 import numpy as np
 from pathlib import Path
-from app.core.config import TSHIRT_MODEL_PATH, TSHIRT_THRESHOLD_PATH, MODEL_INPUT_SIZE
+from app.core.config import CLOTHING_MODEL_PATH, CLOTHING_THRESHOLD_PATH, MODEL_INPUT_SIZE
 from app.errors.handlers import ImageQualityError
 from app.models.schemas import DetectionResult
 
@@ -20,8 +20,8 @@ def _load():
 
     import tensorflow as tf
 
-    model_path = Path(TSHIRT_MODEL_PATH)
-    threshold_path = Path(TSHIRT_THRESHOLD_PATH)
+    model_path = Path(CLOTHING_MODEL_PATH)
+    threshold_path = Path(CLOTHING_THRESHOLD_PATH)
 
     if not model_path.exists():
         raise RuntimeError(f"Clothing model not found at {model_path}.")

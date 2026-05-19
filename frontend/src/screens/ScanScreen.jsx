@@ -22,6 +22,7 @@ export function ScanScreen() {
   const [descMode, setDescMode] = useState('short') // 'short' | 'long'
   const capturedBlobRef = useRef(null)
   const nameInputRef = useRef(null)
+  const savingRef = useRef(false)
 
   useEffect(() => {
     if (phase === 'camera') speak(RESPONSES.scanReady)
@@ -50,7 +51,8 @@ export function ScanScreen() {
   }, [speak])
 
   const handleSave = useCallback(async () => {
-    if (!scanResult) return
+    if (!scanResult || savingRef.current) return
+    savingRef.current = true
     const name = customName.trim() || scanResult.suggested_name || 'Clothing Item'
     setPhase('saving')
     try {
@@ -62,18 +64,20 @@ export function ScanScreen() {
           color: scanResult.color || '',
           description: scanResult.long_description || scanResult.short_description || '',
         },
-        capturedBlobRef.current  // upload the captured image
+        capturedBlobRef.current
       )
       speak(RESPONSES.saved(name))
-      setTimeout(() => navigate(SCREENS.WARDROBE), 1200)
+      setTimeout(() => navigate(SCREENS.HOME), 1200)
     } catch {
-      speak(RESPONSES.error); setPhase('naming')
+      speak(RESPONSES.error)
+      savingRef.current = false
+      setPhase('naming')
     }
   }, [scanResult, customName, addItem, speak, navigate])
 
   const reset = useCallback(() => {
     setScanResult(null); setPreviewUrl(null); setErrorMsg(''); setCustomName('')
-    capturedBlobRef.current = null; setPhase('camera')
+    capturedBlobRef.current = null; savingRef.current = false; setPhase('camera')
   }, [])
 
   const handleUpload = useCallback((e) => {

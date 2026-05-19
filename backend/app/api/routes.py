@@ -91,6 +91,10 @@ async def quick_scan(image: UploadFile = File(...)):
     from PIL import Image
 
     raw = await image.read()
+
+    image_rgb = image_ingestion.ingest(raw)
+    await asyncio.to_thread(tshirt_detector.detect, image_rgb)
+
     img = Image.open(io.BytesIO(raw)).convert("RGB")
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)

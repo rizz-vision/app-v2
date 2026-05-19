@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 from google import genai
 from google.genai import types
-from app.core.config import GEMINI_API_KEY, GEMINI_MODEL
+from app.core.config import GEMINI_API_KEY, GEMINI_PRO_MODEL
 from app.errors.handlers import ImageQualityError
 from app.models.schemas import LLMFeedback, DetectionResult
 
@@ -18,15 +18,30 @@ def _get_client() -> genai.Client:
     return _client
 
 
-SYSTEM_PROMPT = """You are a precise fashion analyst. Analyze the t-shirt in the image.
-Rules:
+# ── Category-specific system prompts ─────────────────────────────────────────
+
+_BASE_RULES = """Rules:
 1. Every sentence must be under 15 words. Write for text-to-speech.
-2. Use concrete tactile language: fabric weight, neckline type, sleeve length, fit.
+2. Use concrete tactile language: fabric weight, neckline/waistband type, fit, length.
 3. Never use vague praise: no "cool", "sharp", "pops", "stylish", "great".
 4. State colors precisely: "slate grey", "dusty rose", not just "grey" or "pink".
-5. Count only the t-shirt as one garment. Prints/graphics are not separate garments.
-6. wardrobe_description must be 3-4 sentences suitable for saving to a wardrobe catalogue.
+5. wardrobe_description must be 3-4 sentences suitable for saving to a wardrobe catalogue.
 Return ONLY valid JSON matching the schema exactly."""
+
+SYSTEM_PROMPTS = {
+    "tops": f"""You are a precise fashion analyst. Analyze the top in the image (t-shirt, shirt, blouse, hoodie, etc.).
+Focus on: neckline type, sleeve length and style, fabric weight and texture, fit across shoulders and chest, any print or graphic details.
+{_BASE_RULES}""",
+
+    "bottoms": f"""You are a precise fashion analyst. Analyze the bottom in the image (jeans, trousers, shorts, skirt, etc.).
+Focus on: garment type, rise (high/mid/low), leg cut (slim/wide/straight/flared), fabric weight and texture, waistband style, length, any detailing (distressing, pleats, pockets).
+{_BASE_RULES}""",
+}
+
+# Fallback for unexpected categories
+_DEFAULT_SYSTEM_PROMPT = f"""You are a precise fashion analyst. Analyze the clothing item in the image.
+Focus on: garment type, fabric weight and texture, fit, color, and any notable detailing.
+{_BASE_RULES}"""
 
 MIRROR_SYSTEM_PROMPT = """You are an honest auditory mirror for a visually impaired user.
 The user is looking at their reflection. Describe exactly what you see — outfit, grooming, and overall appearance.
@@ -81,6 +96,13 @@ RESPONSE_SCHEMA = {
     ],
 }
 
+# Human-readable category labels for prompts
+_CATEGORY_LABELS = {
+    "tops": "top (e.g. t-shirt, shirt, blouse, hoodie, vest)",
+    "bottoms": "bottom (e.g. jeans, trousers, shorts, skirt)",
+    "other": "clothing item",
+}
+
 
 def _image_to_bytes(image_rgb: np.ndarray) -> bytes:
     img = Image.fromarray(image_rgb)
@@ -101,9 +123,13 @@ def get_feedback(
     if mode == "mirror":
         return _get_mirror_feedback(client, img_bytes, occasion)
 
+    category = detection.category  # "tops" | "bottoms" | "other"
+    category_label = _CATEGORY_LABELS.get(category, "clothing item")
+    system_prompt = SYSTEM_PROMPTS.get(category, _DEFAULT_SYSTEM_PROMPT)
+
     context_parts = [
-        f"A clothing item ({detection.category}) has been detected with {detection.confidence:.0%} confidence.",
-        f"Analyze this {detection.category[:-1] if detection.category.endswith('s') else detection.category} specifically.",
+        f"The ML classifier identified this as a {category_label} with {detection.confidence:.0%} confidence.",
+        f"Analyze this {category_label} in detail.",
     ]
     if occasion:
         context_parts.append(f"The user is dressing for: {occasion}.")
@@ -112,13 +138,13 @@ def get_feedback(
 
     try:
         response = client.models.generate_content(
-            model=GEMINI_MODEL,
+            model=GEMINI_PRO_MODEL,
             contents=[
                 types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
                 user_message,
             ],
             config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
+                system_instruction=system_prompt,
                 response_mime_type="application/json",
                 response_schema=RESPONSE_SCHEMA,
                 temperature=0.3,
@@ -126,7 +152,7 @@ def get_feedback(
         )
         data = json.loads(response.text)
         return LLMFeedback(**data)
-    except Exception as e:
+    except Exception:
         raise ImageQualityError("llm_parse_failed", "Something went wrong generating your feedback. Please try again.")
 
 
@@ -137,7 +163,7 @@ def _get_mirror_feedback(client, img_bytes: bytes, occasion: str = "") -> LLMFee
 
     try:
         response = client.models.generate_content(
-            model=GEMINI_MODEL,
+            model=GEMINI_PRO_MODEL,
             contents=[
                 types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
                 user_message,
@@ -150,7 +176,6 @@ def _get_mirror_feedback(client, img_bytes: bytes, occasion: str = "") -> LLMFee
             ),
         )
         data = json.loads(response.text)
-        # Map mirror schema → LLMFeedback fields
         return LLMFeedback(
             garments=[{"name": "Outfit", "description": data.get("outfit_description", "")}],
             color_feedback=data.get("outfit_match", ""),

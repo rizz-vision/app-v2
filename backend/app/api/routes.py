@@ -116,7 +116,7 @@ async def quick_scan(image: UploadFile = File(...)):
         )
         data = json.loads(response.text)
     except GeminiServerError as exc:
-        if exc.status_code != 503:
+        if exc.code != 503:
             raise
         gemini_unavailable = True
         data = groq_fallback.vision_json(
@@ -175,7 +175,7 @@ async def outfit_suggestion(
         )
         suggestion = response.text
     except GeminiServerError as exc:
-        if exc.status_code != 503:
+        if exc.code != 503:
             raise
         suggestion = groq_fallback.FALLBACK_NOTE + " " + groq_fallback.text_plain(prompt)
     return {"suggestion": suggestion}
@@ -264,7 +264,7 @@ async def shopping_analyze(
                 "top_archetypes": [],
             }
     except GeminiServerError as exc:
-        if exc.status_code != 503:
+        if exc.code != 503:
             raise
         gemini_unavailable = True
         try:
@@ -368,7 +368,7 @@ async def context_chat(
         )
         answer = response.text.strip()
     except GeminiServerError as exc:
-        if exc.status_code != 503:
+        if exc.code != 503:
             raise
         answer = groq_fallback.FALLBACK_NOTE + " " + groq_fallback.text_plain(full_content, system=system)
     return {"answer": answer}
@@ -451,7 +451,7 @@ async def identify_item(
         )
         return json.loads(response.text)
     except GeminiServerError as exc:
-        if exc.status_code != 503:
+        if exc.code != 503:
             raise
         data = groq_fallback.vision_json(buf.getvalue(), identify_prompt, schema_hint=str(schema))
         data.setdefault("spoken", groq_fallback.FALLBACK_NOTE + " " + data.get("spoken", ""))
@@ -516,7 +516,7 @@ async def voice_query(
         )
         return json.loads(response.text)
     except GeminiServerError as exc:
-        if exc.status_code != 503:
+        if exc.code != 503:
             raise
         data = groq_fallback.text_json(
             user_content,

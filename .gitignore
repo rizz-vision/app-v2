@@ -18,9 +18,14 @@ dist/
 # Model artifacts (large — deployed via Git LFS in push-hf.sh)
 backend/model/*.keras
 backend/model/*.h5
+backend/model/*.onnx
 # keep threshold files (small, versioned)
 !backend/model/threshold.json
 !backend/model/thresholds_v2.json
+
+# ONNX files anywhere in ml/ (never commit large binaries)
+ml/**/*.onnx
+ml/*.onnx
 
 # Dataset (never commit)
 data/

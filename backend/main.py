@@ -48,7 +48,7 @@ register_handlers(app)
 app.include_router(router)
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "ok", "version": "2.0.0"}
 

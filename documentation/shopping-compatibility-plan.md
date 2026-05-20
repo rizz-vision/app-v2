@@ -90,12 +90,20 @@ emb_A          → 512-dim  (new shopping item)
 emb_B          → 512-dim  (wardrobe item)
 emb_A − emb_B  → 512-dim  (difference captures style distance)
 emb_A ⊙ emb_B  → 512-dim  (element-wise product captures shared features)
-category_pair  → 9-dim    (one-hot: tops+tops, tops+bottoms, tops+outerwear,
-                            tops+shoes, bottoms+bottoms, bottoms+outerwear,
-                            bottoms+shoes, outerwear+outerwear, other)
+category_pair  → 3-dim    (one-hot: tops+tops, bottoms+bottoms, tops+bottoms)
 ─────────────────────────
-Total input    → 2057-dim
+Total input    → 2051-dim
 ```
+
+> **Current scope:** EfficientNetB3 classifies only `tops / bottoms / other`. Items
+> classified as `other` are rejected at the gate and never reach the wardrobe, so
+> the only pairs that can exist at runtime are the three above.
+>
+> **Future expansion:** When EfficientNetB3 is retrained to classify additional
+> categories (outerwear, shoes, accessories), extend the one-hot to cover those
+> pairs (e.g. tops+outerwear, tops+shoes, bottoms+shoes, etc.) and retrain the MLP.
+> The architecture is designed to accommodate this — only the input dimension and
+> category encoding need to change.
 
 ### Layers
 

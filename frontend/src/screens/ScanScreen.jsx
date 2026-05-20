@@ -46,7 +46,10 @@ export function ScanScreen() {
       setPhase('naming')
     } catch (err) {
       const msg = err.message || 'Could not identify the item. Please try a clearer photo.'
-      setErrorMsg(msg); speak(msg); setPhase('error')
+      const isNotClothing = err.error_code === 'not_clothing' || err.error_code === 'low_confidence'
+      setErrorMsg(msg)
+      speak(msg)
+      setPhase(isNotClothing ? 'not_clothing' : 'error')
     }
   }, [speak])
 
@@ -158,6 +161,22 @@ export function ScanScreen() {
         <div role="status" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 40, gap: 20 }}>
           <LoadingBars />
           <p aria-live="polite" style={{ color: COLORS.TEXT_MUTED, fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', margin: 0 }}>{subtitle}</p>
+        </div>
+      </Screen>
+    )
+  }
+
+  // ── Not Clothing ──
+  if (phase === 'not_clothing') {
+    return (
+      <Screen title="Not a Clothing Item" subtitle="Only tops and bottoms can be saved.">
+        {previewUrl && <img src={previewUrl} alt="" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 20, maxHeight: 280, objectFit: 'cover', opacity: 0.45, border: `2px solid ${COLORS.BORDER}` }} />}
+        <div role="alert" style={{ border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: 18, marginBottom: 20, background: COLORS.SURFACE }}>
+          <p style={{ fontSize: 15, color: COLORS.TEXT, lineHeight: 1.7, margin: 0 }}>{errorMsg}</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <BigButton label="Try Again" icon="📸" variant="primary" onClick={reset} />
+          <BigButton label="Read Message Again" icon="🔊" onClick={() => speak(errorMsg)} />
         </div>
       </Screen>
     )

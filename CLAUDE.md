@@ -146,7 +146,10 @@ POST /analyze
   → AnalyzeResponse
 ```
 
-Other endpoints (`/quick-scan`, `/outfit-suggestion`, `/context-chat`, `/identify-item`, `/voice-query`) call Gemini directly — they skip the clothing detector gate.
+Other endpoints (`/quick-scan`, `/outfit-suggestion`, `/context-chat`, `/identify-item`, `/voice-query`) also run through the clothing detector gate before calling Gemini — non-clothing items are rejected early and never reach the LLM.
+
+### Non-clothing item handling
+When `clothing_detector` returns `not_clothing` or `low_confidence`, the backend raises `ImageQualityError` before any Gemini call. The frontend (`ScanScreen`) catches the error code and renders a dedicated `not_clothing` phase — a clear message with no "Save to Wardrobe" option, only a "Try Again" button. This prevents wasted API calls and avoids confusing the user with a save flow for non-clothing items.
 
 ### Model loading
 `clothing_detector.py` lazy-loads the Keras model and per-class thresholds on the first request. Thresholds are read from `backend/model/thresholds_v2.json` (`tops: 0.91`, `bottoms: 0.70`, `other: 0.85`). The `.keras` file is stored in Git LFS and deployed via `scripts/push-hf.sh`.

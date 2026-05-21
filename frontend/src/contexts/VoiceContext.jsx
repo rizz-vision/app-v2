@@ -142,14 +142,20 @@ export function VoiceProvider({ children }) {
     processingRef.current = true
     setIsProcessing(true)
     speakInstant(r('processing'))
+
+    // Reassure the user if the API takes more than 4 seconds
+    const reassureTimer = setTimeout(() => speakInstant(r('stillWorking')), 4000)
+
     try {
       const wardrobeCtx = wardrobeItems.length > 0
         ? `Wardrobe has ${wardrobeItems.length} items: ` + wardrobeItems.slice(0, 20).map((i) => `${i.name} (${i.category})`).join(', ')
         : 'Wardrobe is empty.'
       const result = await voiceQuery(text, current.screen, language, wardrobeCtx)
+      clearTimeout(reassureTimer)
       if (result.answer) speak(result.answer)
       if (result.command) handleApiCommand(result.command)
     } catch {
+      clearTimeout(reassureTimer)
       speak(r('error'))
     } finally {
       processingRef.current = false

@@ -89,6 +89,7 @@ export const RESPONSES = {
     thinking:      'One moment.',
     listening:     'Listening.',
     processing:    'Processing your request.',
+    stillWorking:  'Still working on it.',
   },
   hi: {
     welcome:       'Rizzvision में आपका स्वागत है। शुरू करने के लिए स्कैन, वार्डरोब, आउटफिट, शॉपिंग या मिरर कहें।',
@@ -106,6 +107,7 @@ export const RESPONSES = {
     thinking:      'एक पल रुकें।',
     listening:     'सुन रहा हूं।',
     processing:    'आपका अनुरोध प्रोसेस हो रहा है।',
+    stillWorking:  'अभी काम जारी है।',
   },
   ta: {
     welcome:       'Rizzvision-க்கு வரவேற்கிறோம். தொடங்க scan, wardrobe, outfit, shopping அல்லது mirror என்று சொல்லுங்கள்.',
@@ -123,6 +125,7 @@ export const RESPONSES = {
     thinking:      'ஒரு நிமிடம் பொறுங்கள்.',
     listening:     'கேட்கிறேன்.',
     processing:    'உங்கள் கோரிக்கையை செயலாக்குகிறேன்.',
+    stillWorking:  'இன்னும் செயலாக்குகிறேன்.',
   },
 }
 

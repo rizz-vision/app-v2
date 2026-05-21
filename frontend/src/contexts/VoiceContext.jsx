@@ -55,7 +55,7 @@ export function VoiceProvider({ children }) {
     setIsThinking(false)
   }, [])
 
-  // ── Web Speech API fallback ───────────────────────────────────────────────
+  // ── Web Speech API — used for instant status messages (zero network latency) ─
   const _fallbackSpeak = useCallback((text) => {
     const synth = synthRef.current
     synth.cancel()
@@ -67,6 +67,18 @@ export function VoiceProvider({ children }) {
     utt.onend = () => setIsThinking(false)
     utt.onerror = () => setIsThinking(false)
     synth.speak(utt)
+  }, [locale])
+
+  // speakInstant: always uses Web Speech API — no network round-trip.
+  // Use for short status messages where immediacy matters more than voice quality.
+  const speakInstant = useCallback((text) => {
+    if (!text) return
+    const synth = synthRef.current
+    synth?.cancel()
+    const utt = new SpeechSynthesisUtterance(text)
+    utt.lang = locale
+    utt.rate = 0.95
+    synth?.speak(utt)
   }, [locale])
 
   // ── primary speak — Kokoro via /tts, fallback to Web Speech API ───────────
@@ -114,9 +126,9 @@ export function VoiceProvider({ children }) {
       _suppressBeep()
       fatalErrorRef.current = false   // user explicitly requesting mic — clear any fatal error
       try { rec.start() } catch {}
-      speak(r('listening'))
+      speakInstant(r('listening'))
     }
-  }, [listening, speak, r])
+  }, [listening, speakInstant, r])
 
   // ── handle navigation commands returned from the API ───────────────────────
   const handleApiCommand = useCallback((command) => {
@@ -129,7 +141,7 @@ export function VoiceProvider({ children }) {
   const askAssistant = useCallback(async (text) => {
     processingRef.current = true
     setIsProcessing(true)
-    speak(r('processing'))
+    speakInstant(r('processing'))
     try {
       const wardrobeCtx = wardrobeItems.length > 0
         ? `Wardrobe has ${wardrobeItems.length} items: ` + wardrobeItems.slice(0, 20).map((i) => `${i.name} (${i.category})`).join(', ')
@@ -143,7 +155,7 @@ export function VoiceProvider({ children }) {
       processingRef.current = false
       setIsProcessing(false)
     }
-  }, [current.screen, language, wardrobeItems, speak, handleApiCommand, r])
+  }, [current.screen, language, wardrobeItems, speak, speakInstant, handleApiCommand, r])
 
   // ── process a final transcript ─────────────────────────────────────────────
   const handleFinal = useCallback((text) => {

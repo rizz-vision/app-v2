@@ -75,8 +75,8 @@ export const CATEGORIES = [
 export const RESPONSES = {
   en: {
     welcome:       'Welcome to Rizzvision. Say scan, wardrobe, outfit, shopping, or mirror to get started.',
-    scanReady:     'Point the camera at a clothing item and tap capture, or say capture.',
-    mirrorReady:   'Point the camera at your full outfit and tap capture.',
+    scanReady:     'Point the camera at a clothing item and tap the capture button.',
+    mirrorReady:   'Point the camera at your full outfit and tap the capture button.',
     mirrorAnalyzing: 'Analyzing your outfit. One moment.',
     outfitPrompt:  'What occasion are you dressing for?',
     generating:    'Working on your outfit suggestion.',
@@ -98,8 +98,8 @@ export const RESPONSES = {
   },
   hi: {
     welcome:       'Rizzvision में आपका स्वागत है। शुरू करने के लिए स्कैन, वार्डरोब, आउटफिट, शॉपिंग या मिरर कहें।',
-    scanReady:     'कैमरे को कपड़े की तरफ करें और कैप्चर पर टैप करें, या कैप्चर कहें।',
-    mirrorReady:   'कैमरे को अपने पूरे आउटफिट की तरफ करें और कैप्चर पर टैप करें।',
+    scanReady:     'कैमरे को कपड़े की तरफ करें और कैप्चर बटन पर टैप करें।',
+    mirrorReady:   'कैमरे को अपने पूरे आउटफिट की तरफ करें और कैप्चर बटन पर टैप करें।',
     mirrorAnalyzing: 'आपका आउटफिट देख रहे हैं। एक पल रुकें।',
     outfitPrompt:  'आप किस अवसर के लिए तैयार हो रहे हैं?',
     generating:    'आपके आउटफिट का सुझाव तैयार हो रहा है।',
@@ -121,8 +121,8 @@ export const RESPONSES = {
   },
   ta: {
     welcome:       'Rizzvision-க்கு வரவேற்கிறோம். தொடங்க scan, wardrobe, outfit, shopping அல்லது mirror என்று சொல்லுங்கள்.',
-    scanReady:     'கேமராவை உடையின் மீது திருப்பி capture என்று தட்டுங்கள் அல்லது சொல்லுங்கள்.',
-    mirrorReady:   'கேமராவை உங்கள் முழு உடையின் மீது திருப்பி capture என்று தட்டுங்கள்.',
+    scanReady:     'கேமராவை உடையின் மீது திருப்பி capture பொத்தானை தட்டுங்கள்.',
+    mirrorReady:   'கேமராவை உங்கள் முழு உடையின் மீது திருப்பி capture பொத்தானை தட்டுங்கள்.',
     mirrorAnalyzing: 'உங்கள் உடையை பகுப்பாய்வு செய்கிறோம். ஒரு நிமிடம் பொறுங்கள்.',
     outfitPrompt:  'நீங்கள் எந்த நிகழ்வுக்காக தயாராகிறீர்கள்?',
     generating:    'உங்கள் உடை பரிந்துரை தயாரிக்கப்படுகிறது.',

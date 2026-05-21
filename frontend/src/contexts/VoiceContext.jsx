@@ -5,6 +5,19 @@ import { useWardrobe } from './WardrobeContext.jsx'
 import { voiceQuery } from '../services/api.js'
 import { SCREENS, SCREEN_DESCRIPTIONS, SCREEN_HELP, RESPONSES, localeForLang } from '../utils/constants.js'
 
+// Suppress the browser's default mic-activation beep by playing a silent audio node
+function _suppressBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const buf = ctx.createBuffer(1, 1, 22050)
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    src.connect(ctx.destination)
+    src.start(0)
+    setTimeout(() => ctx.close(), 500)
+  } catch {}
+}
+
 const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 const VoiceContext = createContext(null)
@@ -15,11 +28,13 @@ export function VoiceProvider({ children }) {
   const locale = localeForLang(language)
   const [listening, setListening] = useState(false)
   const [isThinking, setIsThinking] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false) // true while waiting for API response
   const [transcript, setTranscript] = useState('')
   const recognitionRef = useRef(null)
   const audioRef = useRef(null)        // current HTMLAudioElement (Kokoro path)
   const synthRef = useRef(window.speechSynthesis)
   const pausedRef = useRef(false)
+  const processingRef = useRef(false)  // mirror of isProcessing for use inside callbacks
   const lastSpokenRef = useRef('')
   const fatalErrorRef = useRef(false)  // set true on not-allowed; cleared on manual tap
 
@@ -90,15 +105,18 @@ export function VoiceProvider({ children }) {
   }, [language, stop, _fallbackSpeak])
 
   const toggleListening = useCallback(() => {
+    if (processingRef.current) return  // ignore taps while processing
     const rec = recognitionRef.current
     if (!rec) return
     if (listening) {
       rec.stop()
     } else {
+      _suppressBeep()
       fatalErrorRef.current = false   // user explicitly requesting mic — clear any fatal error
       try { rec.start() } catch {}
+      speak(r('listening'))
     }
-  }, [listening])
+  }, [listening, speak, r])
 
   // ── handle navigation commands returned from the API ───────────────────────
   const handleApiCommand = useCallback((command) => {
@@ -109,7 +127,9 @@ export function VoiceProvider({ children }) {
 
   // ── AI assistant fallback for unrecognised speech ─────────────────────────
   const askAssistant = useCallback(async (text) => {
-    speak(r('thinking'))
+    processingRef.current = true
+    setIsProcessing(true)
+    speak(r('processing'))
     try {
       const wardrobeCtx = wardrobeItems.length > 0
         ? `Wardrobe has ${wardrobeItems.length} items: ` + wardrobeItems.slice(0, 20).map((i) => `${i.name} (${i.category})`).join(', ')
@@ -119,6 +139,9 @@ export function VoiceProvider({ children }) {
       if (result.command) handleApiCommand(result.command)
     } catch {
       speak(r('error'))
+    } finally {
+      processingRef.current = false
+      setIsProcessing(false)
     }
   }, [current.screen, language, wardrobeItems, speak, handleApiCommand, r])
 
@@ -222,11 +245,15 @@ export function VoiceProvider({ children }) {
     const rec = recognitionRef.current
     if (!rec) return
     rec.onresult = (e) => {
-      if (pausedRef.current) return
+      if (pausedRef.current || processingRef.current) return
       const last = e.results[e.results.length - 1]
       const text = last[0].transcript
       setTranscript(text)
-      if (last.isFinal) handleFinal(text.trim())
+      if (last.isFinal) {
+        // stop immediately — prevents continued capture after the command is heard
+        try { rec.stop() } catch {}
+        handleFinal(text.trim())
+      }
     }
   }, [handleFinal])
 
@@ -241,7 +268,7 @@ export function VoiceProvider({ children }) {
   const t = useCallback((key, ...args) => r(key, ...args), [r])
 
   return (
-    <VoiceContext.Provider value={{ listening, isThinking, transcript, speak, stop, toggleListening, t, language }}>
+    <VoiceContext.Provider value={{ listening, isThinking, isProcessing, transcript, speak, stop, toggleListening, t, language }}>
       {children}
     </VoiceContext.Provider>
   )

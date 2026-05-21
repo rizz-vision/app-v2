@@ -87,6 +87,8 @@ export const RESPONSES = {
     itemUpdated:   (name) => `${name} updated.`,
     error:         'Something went wrong. Please try again.',
     thinking:      'One moment.',
+    listening:     'Listening.',
+    processing:    'Processing your request.',
   },
   hi: {
     welcome:       'Rizzvision में आपका स्वागत है। शुरू करने के लिए स्कैन, वार्डरोब, आउटफिट, शॉपिंग या मिरर कहें।',
@@ -102,6 +104,8 @@ export const RESPONSES = {
     itemUpdated:   (name) => `${name} अपडेट हो गया।`,
     error:         'कुछ गलत हो गया। कृपया फिर से कोशिश करें।',
     thinking:      'एक पल रुकें।',
+    listening:     'सुन रहा हूं।',
+    processing:    'आपका अनुरोध प्रोसेस हो रहा है।',
   },
   ta: {
     welcome:       'Rizzvision-க்கு வரவேற்கிறோம். தொடங்க scan, wardrobe, outfit, shopping அல்லது mirror என்று சொல்லுங்கள்.',
@@ -117,6 +121,8 @@ export const RESPONSES = {
     itemUpdated:   (name) => `${name} புதுப்பிக்கப்பட்டது.`,
     error:         'ஏதோ தவறு நடந்தது. மீண்டும் முயற்சிக்கவும்.',
     thinking:      'ஒரு நிமிடம் பொறுங்கள்.',
+    listening:     'கேட்கிறேன்.',
+    processing:    'உங்கள் கோரிக்கையை செயலாக்குகிறேன்.',
   },
 }
 

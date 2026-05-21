@@ -40,6 +40,14 @@ export function ScanScreen() {
     speak('Identifying the item. One moment.')
     try {
       const result = await quickScan(blob)
+      const cat = (result.category || '').toLowerCase()
+      if (cat !== 'tops' && cat !== 'bottoms') {
+        const msg = `This looks like ${result.suggested_name || cat || 'an item'}. Only tops and bottoms can be saved to your wardrobe.`
+        setErrorMsg(msg)
+        speak(msg)
+        setPhase('not_clothing')
+        return
+      }
       setScanResult(result)
       setCustomName(result.suggested_name || result.name || '')
       speak(result.short_description || result.suggested_name || 'Item identified.')
@@ -169,7 +177,7 @@ export function ScanScreen() {
   // ── Not Clothing ──
   if (phase === 'not_clothing') {
     return (
-      <Screen title="Not a Clothing Item" subtitle="Only tops and bottoms can be saved.">
+      <Screen title="Cannot Save" subtitle="Only tops and bottoms can be added to your wardrobe.">
         {previewUrl && <img src={previewUrl} alt="" style={{ width: '100%', borderRadius: COLORS.RADIUS, marginBottom: 20, maxHeight: 280, objectFit: 'cover', opacity: 0.45, border: `2px solid ${COLORS.BORDER}` }} />}
         <div role="alert" style={{ border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: 18, marginBottom: 20, background: COLORS.SURFACE }}>
           <p style={{ fontSize: 15, color: COLORS.TEXT, lineHeight: 1.7, margin: 0 }}>{errorMsg}</p>

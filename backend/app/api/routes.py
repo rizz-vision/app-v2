@@ -188,13 +188,14 @@ async def outfit_suggestion(
 SHOPPING_SCHEMA = {
     "type": "object",
     "properties": {
-        "item_description": {"type": "string"},
-        "wardrobe_match":   {"type": "string"},
-        "buy_verdict":      {"type": "string"},
-        "suitable_occasions": {"type": "array", "items": {"type": "string"}},
-        "top_archetypes":   {"type": "array", "items": {"type": "string"}},
+        "detected_category":  {"type": "string"},   # "tops" or "bottoms"
+        "item_description":   {"type": "string"},
+        "buy_verdict":        {"type": "string"},    # "yes" or "no"
+        "verdict_reason":     {"type": "string"},    # 1-2 sentences explaining why
+        "compatible_items":   {"type": "array", "items": {"type": "string"}},  # names of matching wardrobe items
+        "incompatible_items": {"type": "array", "items": {"type": "string"}},  # names that clash
     },
-    "required": ["item_description", "wardrobe_match", "buy_verdict", "suitable_occasions", "top_archetypes"],
+    "required": ["detected_category", "item_description", "buy_verdict", "verdict_reason", "compatible_items", "incompatible_items"],
 }
 
 
@@ -202,6 +203,7 @@ SHOPPING_SCHEMA = {
 async def shopping_analyze(
     image: UploadFile = File(...),
     wardrobe: Optional[str] = Form(""),
+    profile_context: Optional[str] = Form(""),
 ):
     import io
     from PIL import Image as PILImage
@@ -211,32 +213,36 @@ async def shopping_analyze(
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=92)
 
+    profile_note = f"\nUser profile: {profile_context}" if profile_context and profile_context.strip() else ""
+
     has_wardrobe = bool(wardrobe and wardrobe.strip() and wardrobe.strip() not in ("[]", ""))
 
     if has_wardrobe:
-        wardrobe_section = f"User's saved wardrobe:\n{wardrobe}"
-        match_instruction = (
-            "Tell the user which specific wardrobe items this pairs well with and which it would clash with. "
-            "Name the items. If nothing pairs, say so honestly."
+        wardrobe_section = (
+            f"The user's wardrobe contains the following items:\n{wardrobe}\n\n"
+            "The scanned item is either a top or a bottom.\n"
+            "- If it is a TOP: list which BOTTOMS from the wardrobe it pairs well with and which it clashes with.\n"
+            "- If it is a BOTTOM: list which TOPS from the wardrobe it pairs well with and which it clashes with.\n"
+            "Only reference items actually listed in the wardrobe. Use their exact names."
         )
     else:
-        wardrobe_section = "The user has no saved wardrobe items yet."
-        match_instruction = (
-            "Give a standalone style and fit assessment. "
-            "Describe how this item would look and what it generally pairs well with."
+        wardrobe_section = (
+            "The user has no saved wardrobe items.\n"
+            "Give a general verdict on whether this item is versatile and worth buying."
         )
 
     prompt = (
-        "You are RizzVision in shopping mode. Your response will be read aloud.\n"
-        "Be concise but specific — 1-2 sentences per field. No markdown. No bullet lists.\n"
-        "Use concrete tactile language. Never say 'looks good' — say WHY.\n\n"
+        "You are RizzVision in shopping mode. Your response will be read aloud — no markdown, no bullet lists.\n"
+        "Be concise and direct. Use tactile language. Never say 'looks good' — say WHY.\n"
+        f"{profile_note}\n\n"
         f"{wardrobe_section}\n\n"
         "Return JSON with:\n"
-        "- item_description: what you see (garment type, color, fabric/texture, cut)\n"
-        f"- wardrobe_match: {match_instruction}\n"
-        "- buy_verdict: one sentence — is it worth buying for their style?\n"
-        "- suitable_occasions: 2-3 occasion strings (e.g. 'casual', 'office', 'evening out')\n"
-        "- top_archetypes: 1-2 style archetype strings (e.g. 'minimalist', 'streetwear', 'classic')"
+        "- detected_category: exactly 'tops' or 'bottoms' based on what you see in the image\n"
+        "- item_description: one sentence describing the garment (type, color, fabric, cut)\n"
+        "- buy_verdict: exactly 'yes' or 'no'\n"
+        "- verdict_reason: 1-2 sentences explaining the verdict. If wardrobe exists, name the specific compatible items.\n"
+        "- compatible_items: list of wardrobe item names this pairs well with (empty list if no wardrobe)\n"
+        "- incompatible_items: list of wardrobe item names this clashes with (empty list if no wardrobe)"
     )
 
     gemini_unavailable = False
@@ -250,18 +256,19 @@ async def shopping_analyze(
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=SHOPPING_SCHEMA,
-                temperature=0.4,
+                temperature=0.3,
             ),
         )
         try:
             data = json.loads(response.text)
         except Exception:
             data = {
+                "detected_category": "tops",
                 "item_description": "I can see a clothing item.",
-                "wardrobe_match": "Unable to assess compatibility right now.",
-                "buy_verdict": "Try again for a full assessment.",
-                "suitable_occasions": [],
-                "top_archetypes": [],
+                "buy_verdict": "no",
+                "verdict_reason": "Unable to assess right now. Please try again.",
+                "compatible_items": [],
+                "incompatible_items": [],
             }
     except GeminiServerError as exc:
         if exc.code != 503:
@@ -275,33 +282,38 @@ async def shopping_analyze(
             )
         except Exception:
             data = {
+                "detected_category": "tops",
                 "item_description": groq_fallback.FALLBACK_NOTE,
-                "wardrobe_match": "Unable to assess compatibility right now.",
-                "buy_verdict": "Try again for a full assessment.",
-                "suitable_occasions": [],
-                "top_archetypes": [],
+                "buy_verdict": "no",
+                "verdict_reason": "Unable to assess right now. Please try again.",
+                "compatible_items": [],
+                "incompatible_items": [],
             }
 
     if gemini_unavailable and data.get("item_description"):
         data["item_description"] = groq_fallback.FALLBACK_NOTE + " " + data["item_description"]
 
+    verdict = (data.get("buy_verdict") or "no").strip().lower()
+    compatible = data.get("compatible_items") or []
+    incompatible = data.get("incompatible_items") or []
+
     segments = []
     if data.get("item_description"):
-        segments.append({"id": "item",     "text": data["item_description"]})
-    if data.get("wardrobe_match"):
-        segments.append({"id": "match",    "text": data["wardrobe_match"]})
-    if data.get("buy_verdict"):
-        segments.append({"id": "verdict",  "text": data["buy_verdict"]})
-    if data.get("suitable_occasions"):
-        segments.append({"id": "occasions","text": "Best for: " + ", ".join(data["suitable_occasions"]) + "."})
-    if data.get("top_archetypes"):
-        segments.append({"id": "archetypes","text": "Style: " + " and ".join(data["top_archetypes"]) + "."})
+        segments.append({"id": "item", "text": data["item_description"]})
+    if data.get("verdict_reason"):
+        segments.append({"id": "verdict", "text": data["verdict_reason"]})
+    if compatible:
+        segments.append({"id": "compatible", "text": "Goes with: " + ", ".join(compatible) + "."})
+    if incompatible:
+        segments.append({"id": "incompatible", "text": "Clashes with: " + ", ".join(incompatible) + "."})
 
     return {
         "speech_segments": segments,
         "has_wardrobe": has_wardrobe,
-        "suitable_occasions": data.get("suitable_occasions", []),
-        "top_archetypes": data.get("top_archetypes", []),
+        "buy_verdict": verdict,
+        "detected_category": data.get("detected_category", "tops"),
+        "compatible_items": compatible,
+        "incompatible_items": incompatible,
     }
 
 

@@ -50,10 +50,11 @@ export async function getOutfitSuggestion({ wardrobeItems = '', occasion = '', m
   return post('/outfit-suggestion', fd)
 }
 
-export async function shoppingAnalyze(imageBlob, wardrobe = []) {
+export async function shoppingAnalyze(imageBlob, wardrobe = [], profileContext = '') {
   const fd = new FormData()
   fd.append('image', imageBlob, 'photo.jpg')
-  fd.append('wardrobe', wardrobe.length ? wardrobe.map((i) => `${i.name} (${i.category}): ${i.description || ''}`).join('\n') : '')
+  fd.append('wardrobe', wardrobe.length ? wardrobe.map((i) => `${i.name} (${i.category}): ${i.description || ''} color: ${i.color || ''}`).join('\n') : '')
+  fd.append('profile_context', profileContext.slice(0, 600))
   return post('/shopping-analyze', fd, TIMEOUTS.analyze)
 }
 

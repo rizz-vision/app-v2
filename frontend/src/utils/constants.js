@@ -191,3 +191,9 @@ export const SCREEN_HELP = {
     AUTH:      'Sign in செய்ய email மற்றும் password உள்ளிடுங்கள்.',
   },
 }
+
+export const VOICE_COMMANDS_HELP = {
+  en: 'Here are the voice commands you can use. To navigate: say go to scan, go to wardrobe, go to outfit, go to shopping, go to mirror, or go home. To control playback: say repeat that, or stop talking. To get help: say what can I do, or where am I. In the wardrobe: say read all items. After scanning: say save this. You can also ask any fashion question and I will answer.',
+  hi: 'यहां वे वॉयस कमांड हैं जो आप उपयोग कर सकते हैं। नेविगेट करने के लिए: स्कैन, वार्डरोब, आउटफिट, शॉपिंग, मिरर, या होम पर जाएं। प्लेबैक के लिए: दोबारा कहें, या रुको। वार्डरोब में: सभी आइटम पढ़ें। स्कैन के बाद: इसे सेव करें। आप कोई भी फैशन सवाल पूछ सकते हैं।',
+  ta: 'இந்த voice commands பயன்படுத்தலாம். செல்ல: go to scan, go to wardrobe, go to outfit, go to shopping, go to mirror, அல்லது go home என்று சொல்லுங்கள். மீண்டும் கேட்க: repeat that. நிறுத்த: stop talking. wardrobe-ல்: read all items. scan செய்த பின்: save this. எந்த fashion கேள்வியும் கேட்கலாம்.',
+}

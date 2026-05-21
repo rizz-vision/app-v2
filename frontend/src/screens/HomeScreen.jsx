@@ -5,7 +5,7 @@ import { useApp } from '../contexts/AppContext.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useVoice } from '../contexts/VoiceContext.jsx'
 import { useWardrobe } from '../contexts/WardrobeContext.jsx'
-import { SCREENS, COLORS, LANGUAGES } from '../utils/constants.js'
+import { SCREENS, COLORS, LANGUAGES, VOICE_COMMANDS_HELP } from '../utils/constants.js'
 
 const NAV_ITEMS = [
   { screen: SCREENS.SCAN,     label: 'Scan',        desc: 'Analyze a clothing item',      icon: '📸' },
@@ -19,7 +19,7 @@ const NAV_ITEMS = [
 export function HomeScreen() {
   const { navigate, language, setLanguage } = useApp()
   const { signOut } = useAuth()
-  const { speak, isListening, isThinking, toggleListening, t } = useVoice()
+  const { speak, isListening, isThinking, isProcessing, toggleListening, t } = useVoice()
   const { items } = useWardrobe()
 
   useEffect(() => {
@@ -51,12 +51,29 @@ export function HomeScreen() {
 
       <main className="scroll" tabIndex={-1} id="main" style={{ paddingBottom: 'max(120px, calc(env(safe-area-inset-bottom) + 100px))' }}>
         {/* Mic */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '20px 0 24px', borderBottom: `2px solid ${COLORS.BORDER}`, marginBottom: 0 }}>
-          <MicButton isListening={isListening} onClick={toggleListening} size={100} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '20px 18px 24px', borderBottom: `2px solid ${COLORS.BORDER}`, marginBottom: 0 }}>
+          <MicButton isListening={isListening} isProcessing={isProcessing} onClick={toggleListening} size={100} />
           <div role="status" aria-live="polite" aria-atomic="true"
             style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: COLORS.TEXT_MUTED, textAlign: 'center' }}>
-            {isThinking ? 'Speaking…' : isListening ? 'Say "scan", "wardrobe", "outfits"…' : 'Tap to speak'}
+            {isProcessing ? 'Processing…' : isThinking ? 'Speaking…' : isListening ? 'Listening…' : 'Tap to speak'}
           </div>
+          {/* Voice command help */}
+          <button
+            onClick={() => speak(VOICE_COMMANDS_HELP[language] ?? VOICE_COMMANDS_HELP.en)}
+            aria-label="Hear a list of all available voice commands"
+            style={{
+              width: '100%', minHeight: 48,
+              background: COLORS.SURFACE,
+              border: `2px solid ${COLORS.BORDER}`,
+              borderRadius: COLORS.RADIUS,
+              color: COLORS.TEXT,
+              fontSize: 13, fontWeight: 700,
+              cursor: 'pointer',
+              letterSpacing: 0.5,
+            }}
+          >
+            What can I say?
+          </button>
           {items.length > 0 && (
             <div style={{ fontSize: 12, color: COLORS.ACCENT, fontWeight: 700 }}>
               {items.length} item{items.length !== 1 ? 's' : ''} in wardrobe

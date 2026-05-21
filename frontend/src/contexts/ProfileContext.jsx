@@ -44,9 +44,8 @@ function buildProfileContext(p) {
   if (p.weight) parts.push(`Weight: ${p.weight}`)
   if (p.bodyType) parts.push(`Body type: ${p.bodyType}`)
   if (p.colorPrefs?.length) parts.push(`Preferred colours: ${p.colorPrefs.join(', ')}`)
-  if (p.avoidColors?.length) parts.push(`Avoids colours: ${p.avoidColors.join(', ')}`)
+  if (p.avoidColors?.length) parts.push(`MUST AVOID these colours (never recommend or approve items in these colours): ${p.avoidColors.join(', ')}`)
   if (p.patterns?.length) parts.push(`Preferred patterns: ${p.patterns.join(', ')}`)
-  if (p.stylePrefs) parts.push(`Style: ${p.stylePrefs}`)
-  if (p.outfits?.length) parts.push(`${p.outfits.length} pre-saved outfit${p.outfits.length !== 1 ? 's' : ''} uploaded`)
-  return parts.length > 0 ? 'User profile — ' + parts.join('. ') + '.' : ''
+  if (p.stylePrefs) parts.push(`Preferred style: ${p.stylePrefs}`)
+  return parts.length > 0 ? 'User preferences — ' + parts.join('. ') + '.' : ''
 }

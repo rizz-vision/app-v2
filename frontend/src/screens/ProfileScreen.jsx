@@ -23,30 +23,18 @@ export function ProfileScreen() {
   const [avoidColors, setAvoidColors] = useState(profile.avoidColors || [])
   const [patterns, setPatterns] = useState(profile.patterns || [])
   const [stylePrefs, setStylePrefs] = useState(profile.stylePrefs || '')
-  const [outfits, setOutfits] = useState(profile.outfits || []) // array of dataUrls
   const [saved, setSaved] = useState(false)
 
   const toggleArr = (arr, setArr, val) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val])
   }
 
-  const handleOutfitUpload = useCallback((e) => {
-    const files = Array.from(e.target.files || [])
-    if (!files.length) return
-    const remaining = 5 - outfits.length
-    files.slice(0, remaining).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (ev) => setOutfits((prev) => [...prev, ev.target.result].slice(0, 5))
-      reader.readAsDataURL(file)
-    })
-  }, [outfits])
-
   const handleSave = useCallback(() => {
-    saveProfile({ height, weight, bodyType, colorPrefs, avoidColors, patterns, stylePrefs, outfits })
+    saveProfile({ height, weight, bodyType, colorPrefs, avoidColors, patterns, stylePrefs })
     setSaved(true)
-    speak('Profile saved. The app will use this to personalise your suggestions.')
+    speak('Profile saved. Shopping mode and outfit suggestions will now respect your colour and style preferences.')
     setTimeout(() => setSaved(false), 2000)
-  }, [height, weight, bodyType, colorPrefs, avoidColors, patterns, stylePrefs, outfits, saveProfile, speak])
+  }, [height, weight, bodyType, colorPrefs, avoidColors, patterns, stylePrefs, saveProfile, speak])
 
   return (
     <Screen title="My Profile" subtitle="All fields are optional">
@@ -67,30 +55,6 @@ export function ProfileScreen() {
       <Section label="Style">
         <ChipGroup label="Patterns" options={PATTERN_OPTIONS} selected={patterns} onToggle={(v) => toggleArr(patterns, setPatterns, v)} />
         <ChipGroup label="Style" options={STYLE_OPTIONS} selected={[stylePrefs]} onToggle={(v) => setStylePrefs(stylePrefs === v ? '' : v)} single />
-      </Section>
-
-      <Section label={`My Outfits (${outfits.length}/5)`}>
-        <p style={{ fontSize: 13, color: COLORS.TEXT_MUTED, lineHeight: 1.6, marginBottom: 12, marginTop: 0 }}>
-          Upload up to 5 outfits you already wear. The AI will learn your style from them.
-        </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: outfits.length < 5 ? 12 : 0 }}>
-          {outfits.map((src, i) => (
-            <div key={i} style={{ position: 'relative', width: 72, height: 72 }}>
-              <img src={src} alt={`Outfit ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: COLORS.RADIUS, border: `2px solid ${COLORS.BORDER}` }} />
-              <button
-                onClick={() => setOutfits(outfits.filter((_, j) => j !== i))}
-                aria-label={`Remove outfit ${i + 1}`}
-                style={{ position: 'absolute', top: -8, right: -8, width: 22, height: 22, borderRadius: '50%', background: COLORS.DANGER, border: 'none', color: '#fff', fontSize: 12, fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >×</button>
-            </div>
-          ))}
-        </div>
-        {outfits.length < 5 && (
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: '10px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: COLORS.TEXT_MUTED }}>
-            + Add Outfit Photo
-            <input type="file" accept="image/*" multiple onChange={handleOutfitUpload} style={{ display: 'none' }} />
-          </label>
-        )}
       </Section>
 
       <div style={{ marginTop: 8 }}>

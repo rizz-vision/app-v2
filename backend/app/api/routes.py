@@ -294,14 +294,28 @@ async def shopping_analyze(
         data["item_description"] = groq_fallback.FALLBACK_NOTE + " " + data["item_description"]
 
     verdict = (data.get("buy_verdict") or "no").strip().lower()
+    verdict_reason = data.get("verdict_reason", "")
     compatible = data.get("compatible_items") or []
     incompatible = data.get("incompatible_items") or []
+
+    # Hard-enforce avoided colors from profile — override Gemini's verdict
+    if profile_context and profile_context.strip():
+        import re
+        avoid_match = re.search(r'MUST AVOID.*?:\s*([^\n.]+)', profile_context, re.IGNORECASE)
+        if avoid_match:
+            avoided = [c.strip().lower() for c in avoid_match.group(1).split(',')]
+            item_desc_lower = (data.get("item_description") or "").lower()
+            for color in avoided:
+                if color and color in item_desc_lower:
+                    verdict = "no"
+                    verdict_reason = f"You have marked {color} as a colour to avoid. This item should be skipped."
+                    break
 
     segments = []
     if data.get("item_description"):
         segments.append({"id": "item", "text": data["item_description"]})
-    if data.get("verdict_reason"):
-        segments.append({"id": "verdict", "text": data["verdict_reason"]})
+    if verdict_reason:
+        segments.append({"id": "verdict", "text": verdict_reason})
     if compatible:
         segments.append({"id": "compatible", "text": "Goes with: " + ", ".join(compatible) + "."})
     if incompatible:

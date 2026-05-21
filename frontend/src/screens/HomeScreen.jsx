@@ -19,7 +19,7 @@ const NAV_ITEMS = [
 export function HomeScreen() {
   const { navigate, language, setLanguage } = useApp()
   const { signOut } = useAuth()
-  const { speak, isListening, isThinking, isProcessing, toggleListening, t } = useVoice()
+  const { speak, listening: isListening, isSpeaking, isProcessing, toggleListening, t } = useVoice()
   const { items } = useWardrobe()
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export function HomeScreen() {
           <MicButton isListening={isListening} isProcessing={isProcessing} onClick={toggleListening} size={100} />
           <div role="status" aria-live="polite" aria-atomic="true"
             style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: COLORS.TEXT_MUTED, textAlign: 'center' }}>
-            {isProcessing ? 'Processing…' : isThinking ? 'Speaking…' : isListening ? 'Listening…' : 'Tap to speak'}
+            {isSpeaking ? 'Speaking…' : isListening ? 'Listening…' : 'Tap to speak'}
           </div>
           {/* Voice command help */}
           <button

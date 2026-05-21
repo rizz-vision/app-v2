@@ -2,90 +2,61 @@ import { createContext, useContext, useEffect, useRef, useState, useCallback } f
 import { parseCommand } from '../voice/commandParser.js'
 import { useApp } from './AppContext.jsx'
 import { useWardrobe } from './WardrobeContext.jsx'
-import { voiceQuery } from '../services/api.js'
-import { SCREENS, SCREEN_DESCRIPTIONS, SCREEN_HELP, RESPONSES, localeForLang } from '../utils/constants.js'
-
-// Suppress the browser's default mic-activation beep by playing a silent audio node
-function _suppressBeep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    const buf = ctx.createBuffer(1, 1, 22050)
-    const src = ctx.createBufferSource()
-    src.buffer = buf
-    src.connect(ctx.destination)
-    src.start(0)
-    setTimeout(() => ctx.close(), 500)
-  } catch {}
-}
+import { SCREENS, SCREEN_DESCRIPTIONS, SCREEN_HELP, RESPONSES, VOICE_COMMANDS_HELP, localeForLang } from '../utils/constants.js'
 
 const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 const VoiceContext = createContext(null)
 
+// Play a 50ms silent mp3 blob to "trick" the browser into not triggering its
+// own mic-activation sound before SpeechRecognition starts.
+let _silentAudioUrl = null
+function _getSilentUrl() {
+  if (_silentAudioUrl) return _silentAudioUrl
+  // Minimal valid MP3: 50ms silence
+  const b64 = 'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV'
+  const bytes = atob(b64)
+  const buf = new Uint8Array(bytes.length)
+  for (let i = 0; i < bytes.length; i++) buf[i] = bytes.charCodeAt(i)
+  const blob = new Blob([buf], { type: 'audio/mpeg' })
+  _silentAudioUrl = URL.createObjectURL(blob)
+  return _silentAudioUrl
+}
+
 export function VoiceProvider({ children }) {
   const { navigate, goBack, toggleDescMode, setDescMode, current, language } = useApp()
   const { items: wardrobeItems } = useWardrobe()
   const locale = localeForLang(language)
-  const [listening, setListening] = useState(false)
-  const [isThinking, setIsThinking] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false) // true while waiting for API response
-  const [transcript, setTranscript] = useState('')
-  const recognitionRef = useRef(null)
-  const audioRef = useRef(null)        // current HTMLAudioElement (Kokoro path)
-  const synthRef = useRef(window.speechSynthesis)
-  const pausedRef = useRef(false)
-  const processingRef = useRef(false)  // mirror of isProcessing for use inside callbacks
-  const lastSpokenRef = useRef('')
-  const fatalErrorRef = useRef(false)  // set true on not-allowed; cleared on manual tap
 
-  // ── helpers ────────────────────────────────────────────────────────────────
+  const [listening, setListening] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [transcript, setTranscript] = useState('')
+
+  const recognitionRef = useRef(null)
+  const audioRef = useRef(null)
+  const processingRef = useRef(false)
+  const lastSpokenRef = useRef('')
+  const fatalErrorRef = useRef(false)
+  const restartTimerRef = useRef(null)
+
   const r = useCallback((key, ...args) => {
     const map = RESPONSES[language] ?? RESPONSES.en
     const val = map[key]
     return typeof val === 'function' ? val(...args) : val
   }, [language])
 
-  // ── stop any current speech (both paths) ──────────────────────────────────
-  const stop = useCallback(() => {
+  // ── Kokoro TTS — only speech path, no browser TTS fallback ────────────────
+  const speak = useCallback(async (text) => {
+    if (!text) return
+    lastSpokenRef.current = text
+
+    // Stop any currently playing audio
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current = null
     }
-    synthRef.current?.cancel()
-    setIsThinking(false)
-  }, [])
-
-  // ── Web Speech API — used for instant status messages (zero network latency) ─
-  const _fallbackSpeak = useCallback((text) => {
-    const synth = synthRef.current
-    synth.cancel()
-    const utt = new SpeechSynthesisUtterance(text)
-    utt.lang = locale
-    utt.rate = 0.95
-    utt.pitch = 1
-    utt.onstart = () => setIsThinking(true)
-    utt.onend = () => setIsThinking(false)
-    utt.onerror = () => setIsThinking(false)
-    synth.speak(utt)
-  }, [locale])
-
-  // speakInstant: always uses Web Speech API — no network round-trip.
-  // Use for short status messages where immediacy matters more than voice quality.
-  const speakInstant = useCallback((text) => {
-    if (!text) return
-    const synth = synthRef.current
-    synth?.cancel()
-    const utt = new SpeechSynthesisUtterance(text)
-    utt.lang = locale
-    utt.rate = 0.95
-    synth?.speak(utt)
-  }, [locale])
-
-  // ── primary speak — Kokoro via /tts, fallback to Web Speech API ───────────
-  const speak = useCallback(async (text) => {
-    if (!text) return
-    lastSpokenRef.current = text
-    stop()
+    setIsSpeaking(false)
 
     try {
       const fd = new FormData()
@@ -98,83 +69,76 @@ export function VoiceProvider({ children }) {
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)
       audioRef.current = audio
-      setIsThinking(true)
+      setIsSpeaking(true)
       audio.onended = () => {
-        setIsThinking(false)
+        setIsSpeaking(false)
         URL.revokeObjectURL(url)
         if (audioRef.current === audio) audioRef.current = null
       }
       audio.onerror = () => {
-        setIsThinking(false)
+        setIsSpeaking(false)
         URL.revokeObjectURL(url)
         if (audioRef.current === audio) audioRef.current = null
       }
       audio.play()
     } catch {
-      // /tts unavailable (local dev without backend, or network error) → fallback
-      _fallbackSpeak(text)
+      // TTS backend unavailable — silent fail, no browser TTS
+      setIsSpeaking(false)
     }
-  }, [language, stop, _fallbackSpeak])
+  }, [language])
+
+  const stop = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    setIsSpeaking(false)
+  }, [])
+
+  // ── Start/stop mic ─────────────────────────────────────────────────────────
+  const startListening = useCallback(() => {
+    if (processingRef.current) return
+    const rec = recognitionRef.current
+    if (!rec || listening) return
+
+    // Play silent audio first to suppress browser beep
+    try {
+      const silent = new Audio(_getSilentUrl())
+      silent.volume = 0
+      silent.play().catch(() => {})
+    } catch {}
+
+    fatalErrorRef.current = false
+    try { rec.start() } catch {}
+    speak(r('listening'))
+  }, [listening, speak, r])
+
+  const stopListening = useCallback(() => {
+    const rec = recognitionRef.current
+    if (rec && listening) rec.stop()
+  }, [listening])
 
   const toggleListening = useCallback(() => {
-    if (processingRef.current) return  // ignore taps while processing
-    const rec = recognitionRef.current
-    if (!rec) return
-    if (listening) {
-      rec.stop()
-    } else {
-      _suppressBeep()
-      fatalErrorRef.current = false   // user explicitly requesting mic — clear any fatal error
-      try { rec.start() } catch {}
-      speakInstant(r('listening'))
-    }
-  }, [listening, speakInstant, r])
+    if (listening) stopListening()
+    else startListening()
+  }, [listening, startListening, stopListening])
 
-  // ── handle navigation commands returned from the API ───────────────────────
-  const handleApiCommand = useCallback((command) => {
-    if (!command) return
-    const key = command.trim().toUpperCase()
-    if (SCREENS[key]) navigate(SCREENS[key])
-  }, [navigate])
-
-  // ── AI assistant fallback for unrecognised speech ─────────────────────────
-  const askAssistant = useCallback(async (text) => {
-    processingRef.current = true
-    setIsProcessing(true)
-    speakInstant(r('processing'))
-
-    // Reassure the user if the API takes more than 4 seconds
-    const reassureTimer = setTimeout(() => speakInstant(r('stillWorking')), 4000)
-
-    try {
-      const wardrobeCtx = wardrobeItems.length > 0
-        ? `Wardrobe has ${wardrobeItems.length} items: ` + wardrobeItems.slice(0, 20).map((i) => `${i.name} (${i.category})`).join(', ')
-        : 'Wardrobe is empty.'
-      const result = await voiceQuery(text, current.screen, language, wardrobeCtx)
-      clearTimeout(reassureTimer)
-      if (result.answer) speak(result.answer)
-      if (result.command) handleApiCommand(result.command)
-    } catch {
-      clearTimeout(reassureTimer)
-      speak(r('error'))
-    } finally {
-      processingRef.current = false
-      setIsProcessing(false)
-    }
-  }, [current.screen, language, wardrobeItems, speak, speakInstant, handleApiCommand, r])
-
-  // ── process a final transcript ─────────────────────────────────────────────
+  // ── Handle a recognised final transcript — pure local matching, no API ─────
   const handleFinal = useCallback((text) => {
+    if (processingRef.current) return
+
     const cmd = parseCommand(text)
 
     if (!cmd) {
-      askAssistant(text)
+      // No match — tell the user what they can say, no Gemini call
+      speak(r('notUnderstood'))
       return
     }
 
     switch (cmd.intent) {
       case 'navigate':
         navigate(SCREENS[cmd.screen])
+        speak(r('navigating', cmd.screen))
         break
       case 'back':
         goBack()
@@ -205,88 +169,70 @@ export function VoiceProvider({ children }) {
       case 'save_item':
         window.dispatchEvent(new CustomEvent('voiceCommand', { detail: { type: 'SAVE_ITEM' } }))
         break
+      case 'capture':
+        window.dispatchEvent(new CustomEvent('voiceCommand', { detail: { type: 'CAPTURE' } }))
+        break
       default:
         window.dispatchEvent(new CustomEvent('voiceCommand', { detail: cmd }))
     }
-  }, [navigate, goBack, toggleDescMode, setDescMode, speak, stop, askAssistant, language, current.screen])
+  }, [navigate, goBack, toggleDescMode, setDescMode, speak, stop, language, current.screen, r])
 
-  // ── SpeechRecognition — always-on, auto-restarts with backoff ────────────
+  // ── SpeechRecognition setup ────────────────────────────────────────────────
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) return
 
     const rec = new SpeechRecognition()
-    rec.continuous = true
-    rec.interimResults = true
+    rec.continuous = false      // single utterance — stops after one result, no endless capture
+    rec.interimResults = false  // final results only — faster, no partial updates
     rec.lang = locale
+    rec.maxAlternatives = 1
     recognitionRef.current = rec
 
-    let backoff = 300      // ms — doubles on each consecutive failure, caps at 10s
-    let restartTimer = null
-    // Fatal errors — do not restart, require user to tap mic manually
-    const FATAL_ERRORS = new Set(['not-allowed', 'service-not-allowed', 'audio-capture'])
+    const FATAL = new Set(['not-allowed', 'service-not-allowed', 'audio-capture'])
 
-    rec.onstart = () => { setListening(true); backoff = 300; fatalErrorRef.current = false }
-    rec.onend = () => {
-      setListening(false)
-      if (pausedRef.current || fatalErrorRef.current) return
-      restartTimer = setTimeout(() => { try { rec.start() } catch {} }, backoff)
-      backoff = Math.min(backoff * 2, 10_000)
-    }
+    rec.onstart = () => { setListening(true); fatalErrorRef.current = false }
+    rec.onend = () => { setListening(false) }
     rec.onerror = (e) => {
-      if (FATAL_ERRORS.has(e.error)) {
+      if (FATAL.has(e.error)) {
         fatalErrorRef.current = true
-        console.warn('SpeechRecognition: fatal error —', e.error, '— mic disabled until user taps')
-      } else if (e.error !== 'no-speech') {
-        console.warn('SpeechRecognition error:', e.error)
+        console.warn('SpeechRecognition fatal:', e.error)
       }
     }
 
-    rec.start()
-
-    const pause = () => { pausedRef.current = true; clearTimeout(restartTimer); rec.stop() }
-    const resume = () => { pausedRef.current = false; try { rec.start() } catch {} }
-    window.addEventListener('pauseGlobalVoice', pause)
-    window.addEventListener('resumeGlobalVoice', resume)
-
     return () => {
       rec.onend = null
-      clearTimeout(restartTimer)
+      clearTimeout(restartTimerRef.current)
       rec.stop()
-      window.removeEventListener('pauseGlobalVoice', pause)
-      window.removeEventListener('resumeGlobalVoice', resume)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-attach onresult whenever handleFinal changes (screen/language)
+  // Re-attach onresult when handleFinal changes
   useEffect(() => {
     const rec = recognitionRef.current
     if (!rec) return
     rec.onresult = (e) => {
-      if (pausedRef.current || processingRef.current) return
-      const last = e.results[e.results.length - 1]
-      const text = last[0].transcript
+      if (processingRef.current) return
+      const text = e.results[0][0].transcript
       setTranscript(text)
-      if (last.isFinal) {
-        // stop immediately — prevents continued capture after the command is heard
-        try { rec.stop() } catch {}
-        handleFinal(text.trim())
-      }
+      handleFinal(text.trim())
     }
   }, [handleFinal])
 
-  // Restart recognition with new locale when language changes
+  // Update locale on language change
   useEffect(() => {
     const rec = recognitionRef.current
     if (!rec) return
-    rec.lang = locale
-    try { rec.stop() } catch {}
-  }, [locale])
+    rec.lang = localeForLang(language)
+  }, [language])
 
   const t = useCallback((key, ...args) => r(key, ...args), [r])
 
   return (
-    <VoiceContext.Provider value={{ listening, isThinking, isProcessing, transcript, speak, stop, toggleListening, t, language }}>
+    <VoiceContext.Provider value={{
+      listening, isSpeaking, isProcessing, transcript,
+      speak, stop, toggleListening, startListening, stopListening, t, language
+    }}>
       {children}
     </VoiceContext.Provider>
   )

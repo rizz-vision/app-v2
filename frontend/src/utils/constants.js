@@ -90,6 +90,11 @@ export const RESPONSES = {
     listening:     'Listening.',
     processing:    'Processing your request.',
     stillWorking:  'Still working on it.',
+    notUnderstood: 'Sorry, I did not catch that. You can say scan, wardrobe, outfit, mirror, or shopping.',
+    navigating:    (screen) => {
+      const names = { HOME: 'home', SCAN: 'scan', WARDROBE: 'wardrobe', OUTFIT: 'outfit', SHOPPING: 'shopping', MIRROR: 'mirror', PROFILE: 'profile' }
+      return `Opening ${names[screen] ?? screen.toLowerCase()}.`
+    },
   },
   hi: {
     welcome:       'Rizzvision में आपका स्वागत है। शुरू करने के लिए स्कैन, वार्डरोब, आउटफिट, शॉपिंग या मिरर कहें।',
@@ -108,6 +113,11 @@ export const RESPONSES = {
     listening:     'सुन रहा हूं।',
     processing:    'आपका अनुरोध प्रोसेस हो रहा है।',
     stillWorking:  'अभी काम जारी है।',
+    notUnderstood: 'माफ करें, समझ नहीं आया। स्कैन, वार्डरोब, आउटफिट, मिरर या शॉपिंग कह सकते हैं।',
+    navigating:    (screen) => {
+      const names = { HOME: 'होम', SCAN: 'स्कैन', WARDROBE: 'वार्डरोब', OUTFIT: 'आउटफिट', SHOPPING: 'शॉपिंग', MIRROR: 'मिरर', PROFILE: 'प्रोफाइल' }
+      return `${names[screen] ?? screen} खुल रहा है।`
+    },
   },
   ta: {
     welcome:       'Rizzvision-க்கு வரவேற்கிறோம். தொடங்க scan, wardrobe, outfit, shopping அல்லது mirror என்று சொல்லுங்கள்.',
@@ -126,6 +136,11 @@ export const RESPONSES = {
     listening:     'கேட்கிறேன்.',
     processing:    'உங்கள் கோரிக்கையை செயலாக்குகிறேன்.',
     stillWorking:  'இன்னும் செயலாக்குகிறேன்.',
+    notUnderstood: 'மன்னிக்கவும், புரியவில்லை. scan, wardrobe, outfit, mirror அல்லது shopping என்று சொல்லுங்கள்.',
+    navigating:    (screen) => {
+      const names = { HOME: 'home', SCAN: 'scan', WARDROBE: 'wardrobe', OUTFIT: 'outfit', SHOPPING: 'shopping', MIRROR: 'mirror', PROFILE: 'profile' }
+      return `${names[screen] ?? screen} திறக்கிறது.`
+    },
   },
 }
 

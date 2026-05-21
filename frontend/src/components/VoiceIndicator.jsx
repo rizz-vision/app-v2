@@ -2,7 +2,7 @@ import { useVoice } from '../contexts/VoiceContext.jsx'
 import { COLORS } from '../utils/constants.js'
 
 export function VoiceIndicator() {
-  const { isListening } = useVoice()
+  const { listening: isListening } = useVoice()
   const label = isListening ? 'Listening' : 'Mic off'
   const color = isListening ? COLORS.ACCENT : COLORS.TEXT_DIM
 

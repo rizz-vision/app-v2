@@ -72,12 +72,18 @@ DF2_CAT_TO_LABEL = {
 # ── Fashionpedia / iMaterialist supercategory → our label ─────────────────────
 # Based on Fashionpedia ontology supercategories
 FASHIONPEDIA_SUPER_TO_LABEL = {
+    # Fashionpedia actual supercategory values
+    "upperbody":  "tops",
+    "lowerbody":  "bottoms",
+    "wholebody":  "dress",
+    "outerwear":  "outerwear",
+    "feet":       "footwear",
+    # iMaterialist variants
     "Upper-body": "tops",
     "Lower-body": "bottoms",
     "Whole-body": "dress",
     "Outerwear":  "outerwear",
     "Feet":       "footwear",
-    # Accessories / head / bags are ignored
 }
 
 # Open Images V7 class names (footwear)
@@ -109,20 +115,16 @@ def _make_splits(records, val_frac, test_frac, seed):
 
 
 def _copy_image(src: Path, dst_dir: Path, stem: str) -> str:
-    """Copy src to dst_dir/<stem>.jpg (convert if needed). Returns relative path."""
-    dst = dst_dir / f"{stem}.jpg"
+    """Raw copy src to dst_dir/<stem><ext>. Fast — no decode/re-encode."""
+    ext = src.suffix.lower() or ".jpg"
+    dst = dst_dir / f"{stem}{ext}"
     if dst.exists():
         return str(dst)
-    img = cv2.imread(str(src))
-    if img is None:
+    try:
+        shutil.copy2(src, dst)
+        return str(dst)
+    except Exception:
         return None
-    # Resize so the shorter side is at most 800px — keeps full composition, saves disk
-    h, w = img.shape[:2]
-    scale = min(1.0, 800 / min(h, w))
-    if scale < 1.0:
-        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
-    cv2.imwrite(str(dst), img, [cv2.IMWRITE_JPEG_QUALITY, 90])
-    return str(dst)
 
 
 def _row(filepath, label_set):
@@ -209,15 +211,25 @@ def read_fashionpedia(fp_root: Path, img_dir: Path, prefix: str) -> list[dict]:
     """
     records = []
     splits = [
-        ("train", "train2020", "instances_attributes_train2020.json"),
-        ("val",   "val2020",   "instances_attributes_val2020.json"),
+        ("train", ["train2020", "train"], "instances_attributes_train2020.json"),
+        ("val",   ["val2020",   "test"],  "instances_attributes_val2020.json"),
     ]
-    for split, img_subdir, anno_file in splits:
+    for split, img_subdirs, anno_file in splits:
         anno_path = fp_root / "annotations" / anno_file
-        images_path = fp_root / "images" / img_subdir
+        # Try each candidate subdir
+        images_path = None
+        for sd in img_subdirs:
+            candidate = fp_root / "images" / sd
+            if candidate.exists():
+                images_path = candidate
+                break
+        if images_path is None:
+            print(f"  [Fashionpedia] skipping {split} — no images dir found")
+            continue
         if not anno_path.exists():
             print(f"  [Fashionpedia] skipping {split} — {anno_path} not found")
             continue
+        print(f"  [Fashionpedia] {split}: using images from {images_path}")
         with open(anno_path) as f:
             data = json.load(f)
         # Build category_id → supercategory map
@@ -263,29 +275,44 @@ def read_imat2020(imat_root: Path, img_dir: Path, prefix: str) -> list[dict]:
     """
     import csv
     records = []
-    label_desc = imat_root / "label_descriptions.csv"
+    # Support both .json and .csv label descriptions
+    label_desc_json = imat_root / "label_descriptions.json"
+    label_desc_csv  = imat_root / "label_descriptions.csv"
     train_csv  = imat_root / "train.csv"
     train_imgs = imat_root / "train"
-    if not label_desc.exists() or not train_csv.exists():
-        print(f"  [iMat2020] skipping — CSVs not found in {imat_root}")
+    if not train_csv.exists():
+        print(f"  [iMat2020] skipping — train.csv not found in {imat_root}")
         return records
     # Build label_id → our label
     cat_map = {}
-    with open(label_desc) as f:
-        for row in csv.DictReader(f):
-            super_cat = row.get("supercategory", "")
+    if label_desc_json.exists():
+        with open(label_desc_json) as f:
+            desc_data = json.load(f)
+        for cat in desc_data.get("categories", []):
+            super_cat = cat.get("supercategory", "")
             lbl = FASHIONPEDIA_SUPER_TO_LABEL.get(super_cat)
             if lbl:
-                cat_map[int(row["id"])] = lbl
+                cat_map[int(cat["id"])] = lbl
+    elif label_desc_csv.exists():
+        with open(label_desc_csv) as f:
+            for row in csv.DictReader(f):
+                super_cat = row.get("supercategory", "")
+                lbl = FASHIONPEDIA_SUPER_TO_LABEL.get(super_cat)
+                if lbl:
+                    cat_map[int(row["id"])] = lbl
+    print(f"  [iMat2020] mapped {len(cat_map)} label IDs")
     # Build image_id → label_set
+    # ClassId column: comma-separated values like "5,6" or "115,136"
+    csv.field_size_limit(10 * 1024 * 1024)  # 10MB — iMat has huge EncodedPixels fields
     img_labels = defaultdict(set)
     with open(train_csv) as f:
         for row in csv.DictReader(f):
             class_ids_raw = row.get("ClassId", "")
             img_id = row["ImageId"]
-            for cid_str in class_ids_raw.split():
+            # Split on comma or space, strip attribute suffixes after underscore
+            for cid_str in class_ids_raw.replace(",", " ").split():
                 try:
-                    cid = int(cid_str.split("_")[0])  # strip attribute suffix if any
+                    cid = int(cid_str.split("_")[0])
                     lbl = cat_map.get(cid)
                     if lbl:
                         img_labels[img_id].add(lbl)
@@ -311,20 +338,60 @@ def read_imat2020(imat_root: Path, img_dir: Path, prefix: str) -> list[dict]:
 def read_openimages_footwear(oi_root: Path, img_dir: Path, prefix: str) -> list[dict]:
     """
     Open Images V7 footwear subset.
-    Expected layout (download via FiftyOne or oidv6 downloader):
-      <oi_root>/
-        train/   val/   test/  (image files named by OI image_id)
-        annotations/
-          oidv6-class-descriptions.csv   (LabelName, DisplayName)
-          train-annotations-bbox.csv     (ImageID, LabelName, …)
-          validation-annotations-bbox.csv
-          test-annotations-bbox.csv
+    Supports two layouts:
+      FiftyOne layout:  <oi_root>/train/data/*.jpg  train/labels/detections.csv
+      oidv6 layout:     <oi_root>/train/*.jpg  annotations/train-annotations-bbox.csv
 
-    We only take images that contain at least one footwear annotation.
-    Label = {"footwear"} for all such images.
+    Label = {"footwear"} for all matched images.
     """
     import csv
     records = []
+
+    # FiftyOne layout: each split has data/ and labels/detections.csv
+    fiftyone_splits = []
+    for split in ("train", "validation", "test"):
+        data_dir = oi_root / split / "data"
+        det_csv  = oi_root / split / "labels" / "detections.csv"
+        if data_dir.exists() and det_csv.exists():
+            fiftyone_splits.append((split, det_csv, data_dir))
+
+    if fiftyone_splits:
+        # FiftyOne detections.csv columns: filepath, label, ...
+        # filepath is relative like "data/<image_id>.jpg"
+        for split, det_csv, data_dir in fiftyone_splits:
+            footwear_files = set()
+            with open(det_csv) as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # FiftyOne detections.csv uses OI LabelName codes OR display names
+                    lbl_name = row.get("LabelName", row.get("label", ""))
+                    lbl_lower = lbl_name.lower()
+                    is_footwear = (
+                        lbl_name in OI_FOOTWEAR_INCLUDE or
+                        any(fw in lbl_lower for fw in ("shoe", "boot", "sneaker", "sandal", "heel"))
+                    )
+                    if is_footwear:
+                        # filepath column may be absolute or relative
+                        fp = row.get("filepath", "")
+                        fname = os.path.basename(fp) if fp else None
+                        # Also try ImageID column
+                        if not fname:
+                            img_id = row.get("ImageID", row.get("image_id", ""))
+                            if img_id:
+                                fname = f"{img_id}.jpg"
+                        if fname:
+                            footwear_files.add(data_dir / fname)
+            print(f"  [OpenImages/FiftyOne] {split}: {len(footwear_files):,} footwear images")
+            for src in tqdm(footwear_files, desc=f"OI/{split}", leave=False):
+                if not src.exists():
+                    continue
+                unique_stem = f"{prefix}_oi_{split}_{src.stem}"
+                dst = _copy_image(src, img_dir, unique_stem)
+                if dst:
+                    records.append(_row(dst, {"footwear"}))
+        return records
+
+    # oidv6 / manual layout fallback
     ann_files = [
         ("train",      "train-annotations-bbox.csv",      oi_root / "train"),
         ("validation", "validation-annotations-bbox.csv", oi_root / "val"),

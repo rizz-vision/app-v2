@@ -144,17 +144,17 @@ export function ScanScreen() {
         </div>
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <CameraCapture onCapture={handleCapture} onFrameDescribed={(t) => speak(t)} aspectRatio="unset" />
-          <div style={{ position: 'absolute', bottom: 140, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10 }}>
-            <label aria-label="Upload from gallery" style={{
-              background: COLORS.BG, border: `2px solid ${COLORS.BORDER}`,
-              borderRadius: COLORS.RADIUS, color: COLORS.TEXT,
-              fontSize: 14, fontWeight: 700, padding: '10px 20px',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-            }}>
-              🖼 Upload from Gallery
-              <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
-            </label>
-          </div>
+        </div>
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', padding: '10px 16px', background: COLORS.BG, borderTop: `2px solid ${COLORS.BORDER}` }}>
+          <label aria-label="Upload from gallery" style={{
+            background: COLORS.SURFACE, border: `2px solid ${COLORS.BORDER}`,
+            borderRadius: COLORS.RADIUS, color: COLORS.TEXT,
+            fontSize: 14, fontWeight: 700, padding: '10px 28px',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            🖼 Upload from Gallery
+            <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
+          </label>
         </div>
       </div>
     )

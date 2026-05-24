@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.errors.handlers import register_handlers
-from app.services import tts_service
+from app.services import tts_service, clothing_detector
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,16 @@ async def lifespan(app: FastAPI):
     # Pre-load Kokoro pipelines in a thread so startup doesn't block the event loop.
     # First real /tts request would trigger this anyway, but doing it at boot means
     # the first user never waits 20-30s for model download.
+    # Pre-load Kokoro TTS
     logger.info("Warming up Kokoro TTS pipelines…")
     await asyncio.to_thread(tts_service.warmup)
     logger.info("TTS warmup complete.")
+
+    # Pre-load clothing classifier so the first user request isn't slow
+    logger.info("Loading clothing classifier…")
+    await asyncio.to_thread(clothing_detector._load)
+    logger.info("Clothing classifier ready.")
+
     yield
 
 

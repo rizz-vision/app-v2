@@ -6,11 +6,11 @@ from app.core.config import CLOTHING_MODEL_PATH, CLOTHING_THRESHOLD_PATH, MODEL_
 from app.errors.handlers import ImageQualityError
 from app.models.schemas import DetectionResult
 
-CLASSES = ["tops", "bottoms", "other"]
+LABELS = ["tops", "bottoms", "footwear", "outerwear", "dress"]
 
 # Lazy-loaded globals
 _model = None
-_thresholds: dict[str, float] = {"tops": 0.91, "bottoms": 0.70, "other": 0.85}
+_thresholds: dict[str, float] = {l: 0.5 for l in LABELS}
 
 
 def _load():
@@ -31,49 +31,45 @@ def _load():
     if threshold_path.exists():
         with open(threshold_path) as f:
             data = json.load(f)
-            # supports both v2 {"thresholds": {...}} and legacy {"threshold": 0.87}
             if "thresholds" in data:
                 _thresholds = data["thresholds"]
-            elif "threshold" in data:
-                t = data["threshold"]
-                _thresholds = {"tops": t, "bottoms": t, "other": t}
 
 
 def detect(image_rgb: np.ndarray) -> DetectionResult:
     """
-    Classifies image as tops / bottoms / other.
-    Raises ImageQualityError if confidence is below per-class threshold
-    or if predicted class is 'other'.
+    Multi-label clothing detector (v3).
+    Returns all garment categories detected above their per-class threshold.
+    Raises ImageQualityError if no clothing is detected.
     """
     _load()
 
     resized = cv2.resize(image_rgb, (MODEL_INPUT_SIZE, MODEL_INPUT_SIZE), interpolation=cv2.INTER_AREA)
-    x = resized.astype("float32") / 255.0
+    # EfficientNet preprocessing: scale to [0,255] float, then preprocess_input handles normalisation
+    x = resized.astype("float32")
     x = np.expand_dims(x, axis=0)
 
-    probs = _model.predict(x, verbose=0)[0]          # shape (3,)
-    class_idx = int(np.argmax(probs))
-    category = CLASSES[class_idx]
-    confidence = float(probs[class_idx])
-    threshold = _thresholds.get(category, 0.70)
-    is_clothing = confidence >= threshold and category != "other"
+    # Import here to avoid loading TF at module level
+    from tensorflow.keras.applications.efficientnet import preprocess_input
+    x = preprocess_input(x)
 
-    result = DetectionResult(
-        is_clothing=is_clothing,
-        category=category,
-        confidence=round(confidence, 4),
-        threshold_used=threshold,
-    )
+    probs = _model.predict(x, verbose=0)[0]   # shape (5,)
+
+    scores = {label: round(float(probs[i]), 4) for i, label in enumerate(LABELS)}
+    categories = [label for label in LABELS if scores[label] >= _thresholds.get(label, 0.5)]
+
+    is_clothing = len(categories) > 0
+    primary = categories[0] if categories else "not_clothing"
 
     if not is_clothing:
-        if category == "other":
-            raise ImageQualityError(
-                "not_clothing",
-                "I could not identify a clothing item. Please hold up a top or bottom and try again.",
-            )
         raise ImageQualityError(
-            "low_confidence",
-            "The image is not clear enough to identify the clothing. Please try again with better lighting.",
+            "not_clothing",
+            "I could not detect any clothing in this image. Please hold up the item and try again.",
         )
 
-    return result
+    return DetectionResult(
+        is_clothing=True,
+        categories=categories,
+        category=primary,
+        scores=scores,
+        model_version="efficientnetb3-multilabel-v3",
+    )

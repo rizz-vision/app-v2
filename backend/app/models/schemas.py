@@ -4,10 +4,10 @@ from typing import Optional, Any
 
 class DetectionResult(BaseModel):
     is_clothing: bool
-    category: str           # "tops", "bottoms", or "other"
-    confidence: float
-    model_version: str = "efficientnetb3-clothing-v2"
-    threshold_used: float
+    categories: list[str]   # detected classes e.g. ["tops", "bottoms"]
+    category: str           # primary category (first detected) or "not_clothing"
+    scores: dict[str, float]
+    model_version: str = "efficientnetb3-multilabel-v3"
 
 
 class GarmentLLM(BaseModel):

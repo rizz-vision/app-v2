@@ -36,6 +36,18 @@ Focus on: neckline type, sleeve length and style, fabric weight and texture, fit
     "bottoms": f"""You are a precise fashion analyst. Analyze the bottom in the image (jeans, trousers, shorts, skirt, etc.).
 Focus on: garment type, rise (high/mid/low), leg cut (slim/wide/straight/flared), fabric weight and texture, waistband style, length, any detailing (distressing, pleats, pockets).
 {_BASE_RULES}""",
+
+    "footwear": f"""You are a precise fashion analyst. Analyze the footwear in the image (shoes, boots, sneakers, sandals, etc.).
+Focus on: shoe type, sole style, material (leather, canvas, suede, synthetic), heel height, closure type (laces, buckle, slip-on), color and finish.
+{_BASE_RULES}""",
+
+    "outerwear": f"""You are a precise fashion analyst. Analyze the outerwear in the image (jacket, coat, blazer, cardigan, etc.).
+Focus on: garment type, fabric weight and warmth, closure style, collar/lapel type, fit across shoulders, length, any hardware or lining details.
+{_BASE_RULES}""",
+
+    "dress": f"""You are a precise fashion analyst. Analyze the dress or jumpsuit in the image.
+Focus on: silhouette (A-line, bodycon, wrap, shirt dress, etc.), neckline, sleeve length, fabric weight and texture, length (mini/midi/maxi), waist definition, any print or embellishment.
+{_BASE_RULES}""",
 }
 
 # Fallback for unexpected categories
@@ -98,9 +110,11 @@ RESPONSE_SCHEMA = {
 
 # Human-readable category labels for prompts
 _CATEGORY_LABELS = {
-    "tops": "top (e.g. t-shirt, shirt, blouse, hoodie, vest)",
-    "bottoms": "bottom (e.g. jeans, trousers, shorts, skirt)",
-    "other": "clothing item",
+    "tops":      "top (e.g. t-shirt, shirt, blouse, hoodie, vest)",
+    "bottoms":   "bottom (e.g. jeans, trousers, shorts, skirt)",
+    "footwear":  "footwear (e.g. shoes, boots, sneakers, sandals)",
+    "outerwear": "outerwear (e.g. jacket, coat, blazer, cardigan)",
+    "dress":     "dress or jumpsuit",
 }
 
 
@@ -123,13 +137,18 @@ def get_feedback(
     if mode == "mirror":
         return _get_mirror_feedback(client, img_bytes, occasion)
 
-    category = detection.category  # "tops" | "bottoms" | "other"
-    category_label = _CATEGORY_LABELS.get(category, "clothing item")
-    system_prompt = SYSTEM_PROMPTS.get(category, _DEFAULT_SYSTEM_PROMPT)
+    # Build a human-readable list of all detected categories
+    detected = detection.categories if detection.categories else [detection.category]
+    category_labels = [_CATEGORY_LABELS.get(c, c) for c in detected]
+    garment_list = ", ".join(category_labels)
+
+    # Use system prompt for primary category; fall back to default for multi-item scenes
+    primary = detection.category
+    system_prompt = SYSTEM_PROMPTS.get(primary, _DEFAULT_SYSTEM_PROMPT)
 
     context_parts = [
-        f"The ML classifier identified this as a {category_label} with {detection.confidence:.0%} confidence.",
-        f"Analyze this {category_label} in detail.",
+        f"The ML classifier detected the following garments: {garment_list}.",
+        f"Analyze each garment in detail.",
     ]
     if occasion:
         context_parts.append(f"The user is dressing for: {occasion}.")

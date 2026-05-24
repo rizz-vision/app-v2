@@ -60,6 +60,12 @@ def detect(image_rgb: np.ndarray) -> DetectionResult:
     is_clothing = len(categories) > 0
     primary = categories[0] if categories else "not_clothing"
 
+    import logging
+    logging.getLogger("rizzvision").info(
+        "detect — categories=%s  scores=%s",
+        categories, {k: f"{v:.3f}" for k, v in scores.items()}
+    )
+
     if not is_clothing:
         import logging
         logging.getLogger("rizzvision").info(

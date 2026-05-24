@@ -1,8 +1,8 @@
 const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 const TIMEOUTS = {
-  default: 15_000,
-  analyze: 30_000,
+  default: 25_000,
+  analyze: 60_000,
   tts: 20_000,
 }
 

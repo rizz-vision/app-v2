@@ -61,6 +61,10 @@ def detect(image_rgb: np.ndarray) -> DetectionResult:
     primary = categories[0] if categories else "not_clothing"
 
     if not is_clothing:
+        import logging
+        logging.getLogger("rizzvision").info(
+            "not_clothing — scores: %s", {k: f"{v:.3f}" for k, v in scores.items()}
+        )
         raise ImageQualityError(
             "not_clothing",
             "This app only accepts clothing items. Please point the camera at a garment and try again.",

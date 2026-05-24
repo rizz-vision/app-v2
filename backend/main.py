@@ -1,7 +1,11 @@
 import asyncio
 import logging
 import os
+import warnings
 from contextlib import asynccontextmanager
+
+# Suppress Python-level deprecation/future warnings from torch and other libs
+warnings.filterwarnings("ignore")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

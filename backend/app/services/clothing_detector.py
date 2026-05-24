@@ -63,7 +63,7 @@ def detect(image_rgb: np.ndarray) -> DetectionResult:
     if not is_clothing:
         raise ImageQualityError(
             "not_clothing",
-            "I could not detect any clothing in this image. Please hold up the item and try again.",
+            "This app only accepts clothing items. Please point the camera at a garment and try again.",
         )
 
     return DetectionResult(

@@ -10,32 +10,54 @@ from app.api.routes import router
 from app.errors.handlers import register_handlers
 from app.services import tts_service, clothing_detector
 
-logger = logging.getLogger(__name__)
+# ── Logging config ─────────────────────────────────────────────────────────────
+# Show INFO+ from our code; suppress noisy third-party logs
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+# Suppress library noise
+for _noisy in ("tensorflow", "absl", "h5py", "keras", "kokoro", "torch",
+               "urllib3", "httpx", "httpcore", "uvicorn.access"):
+    logging.getLogger(_noisy).setLevel(logging.ERROR)
+
+logger = logging.getLogger("rizzvision")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Pre-load Kokoro pipelines in a thread so startup doesn't block the event loop.
-    # First real /tts request would trigger this anyway, but doing it at boot means
-    # the first user never waits 20-30s for model download.
-    # Pre-load Kokoro TTS
-    logger.info("Warming up Kokoro TTS pipelines…")
-    await asyncio.to_thread(tts_service.warmup)
-    logger.info("TTS warmup complete.")
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    logger.info("🚀 Rizzvision backend starting up")
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-    # Pre-load clothing classifier so the first user request isn't slow
-    logger.info("Loading clothing classifier…")
-    await asyncio.to_thread(clothing_detector._load)
-    logger.info("Clothing classifier ready.")
+    # 1. TTS warmup
+    logger.info("[1/2] Loading Kokoro TTS pipelines (en + hi)…")
+    try:
+        await asyncio.to_thread(tts_service.warmup)
+        logger.info("[1/2] ✓ TTS ready")
+    except Exception as exc:
+        logger.error("[1/2] ✗ TTS warmup failed: %s", exc)
 
+    # 2. Clothing classifier
+    logger.info("[2/2] Loading clothing classifier v3 (EfficientNetB3, 115 MB)…")
+    try:
+        await asyncio.to_thread(clothing_detector._load)
+        logger.info("[2/2] ✓ Clothing classifier ready — thresholds: %s", clothing_detector._thresholds)
+    except Exception as exc:
+        logger.error("[2/2] ✗ Clothing classifier failed to load: %s", exc)
+
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    logger.info("✅ All models loaded — accepting requests")
+    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     yield
+    logger.info("🛑 Rizzvision backend shutting down")
 
 
 app = FastAPI(title="rizzvision-v2", version="2.0.0", lifespan=lifespan)
 
 _ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 if not _ALLOWED_ORIGINS:
-    # Default: allow Vercel preview URLs + localhost dev
     _ALLOWED_ORIGINS = [
         "https://rizzvision.vercel.app",
         "https://*.vercel.app",
@@ -60,7 +82,6 @@ def health():
     return {"status": "ok", "version": "2.0.0"}
 
 
-# HuggingFace Spaces pings /?logs=container — return 200 to suppress log noise
 @app.get("/")
 def root():
     return {"status": "ok"}

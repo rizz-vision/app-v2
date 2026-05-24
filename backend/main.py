@@ -10,48 +10,65 @@ from app.api.routes import router
 from app.errors.handlers import register_handlers
 from app.services import tts_service, clothing_detector
 
-# ── Logging config ─────────────────────────────────────────────────────────────
-# Show INFO+ from our code; suppress noisy third-party logs
+# ── Silence noisy libraries (Python logging layer) ─────────────────────────────
+for _lib in ("tensorflow", "absl", "h5py", "keras", "kokoro", "torch",
+             "urllib3", "httpx", "httpcore"):
+    logging.getLogger(_lib).setLevel(logging.ERROR)
+
+# ── Suppress TF stderr noise via env vars (must be set before TF imports) ──────
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")        # suppress TF C++ logs
+os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")       # suppress oneDNN warning
+os.environ.setdefault("PYTHONWARNINGS", "ignore")          # suppress Python warnings
+
+# ── App logger ─────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
 )
-# Suppress library noise
-for _noisy in ("tensorflow", "absl", "h5py", "keras", "kokoro", "torch",
-               "urllib3", "httpx", "httpcore", "uvicorn.access"):
-    logging.getLogger(_noisy).setLevel(logging.ERROR)
-
 logger = logging.getLogger("rizzvision")
+
+
+# ── Filter health-check pings from access log ───────────────────────────────────
+class _HealthFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return not any(p in msg for p in ("/health", "HEAD /", "GET / "))
+
+logging.getLogger("uvicorn.access").addFilter(_HealthFilter())
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    logger.info("🚀 Rizzvision backend starting up")
-    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    logger.info("----------------------------------------")
+    logger.info("Rizzvision backend starting")
+    logger.info("----------------------------------------")
 
-    # 1. TTS warmup
-    logger.info("[1/2] Loading Kokoro TTS pipelines (en + hi)…")
+    logger.info("[1/2] Loading Kokoro TTS (en + hi)...")
     try:
         await asyncio.to_thread(tts_service.warmup)
-        logger.info("[1/2] ✓ TTS ready")
+        logger.info("[1/2] TTS loaded OK")
     except Exception as exc:
-        logger.error("[1/2] ✗ TTS warmup failed: %s", exc)
+        logger.error("[1/2] TTS load FAILED: %s", exc)
 
-    # 2. Clothing classifier
-    logger.info("[2/2] Loading clothing classifier v3 (EfficientNetB3, 115 MB)…")
+    logger.info("[2/2] Loading clothing classifier v3 (115 MB)...")
     try:
         await asyncio.to_thread(clothing_detector._load)
-        logger.info("[2/2] ✓ Clothing classifier ready — thresholds: %s", clothing_detector._thresholds)
+        t = clothing_detector._thresholds
+        logger.info(
+            "[2/2] Classifier loaded OK  |  tops=%.3f  bottoms=%.3f  "
+            "footwear=%.3f  outerwear=%.3f  dress=%.3f",
+            t.get("tops", 0), t.get("bottoms", 0),
+            t.get("footwear", 0), t.get("outerwear", 0), t.get("dress", 0),
+        )
     except Exception as exc:
-        logger.error("[2/2] ✗ Clothing classifier failed to load: %s", exc)
+        logger.error("[2/2] Classifier load FAILED: %s", exc)
 
-    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    logger.info("✅ All models loaded — accepting requests")
-    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    logger.info("----------------------------------------")
+    logger.info("All models ready — accepting requests")
+    logger.info("----------------------------------------")
     yield
-    logger.info("🛑 Rizzvision backend shutting down")
+    logger.info("Backend shutting down")
 
 
 app = FastAPI(title="rizzvision-v2", version="2.0.0", lifespan=lifespan)

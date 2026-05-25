@@ -238,10 +238,11 @@ def _shopping_rule_verdict(
     profile_context: str,
 ) -> dict | None:
     """
-    Instant rule-based verdict. Returns a result dict or None if not enough info.
+    Instant rule-based verdict using HSL color harmony. Returns a result dict or None.
     Runs in <1ms — no LLM, no network.
     """
     import re
+    from app.services.color_extractor import color_harmony, NEUTRAL_COLORS
 
     # Check avoided colors first
     if profile_context and profile_context.strip():
@@ -260,20 +261,14 @@ def _shopping_rule_verdict(
     if not wardrobe_text or not wardrobe_text.strip():
         return None  # no wardrobe → can't do compatibility matching
 
-    # Parse wardrobe lines: "Name (category): description color: colorname"
-    # Find items of the opposite category
     if category == "tops":
         target_cat = "bottoms"
     elif category == "bottoms":
         target_cat = "tops"
     else:
-        return None  # dress/outerwear etc — fall through to Gemini
+        return None  # dress/outerwear — fall through to Gemini
 
-    # Color compatibility rules (simplified but effective)
-    NEUTRAL_COLORS = {"black", "white", "grey", "beige", "navy"}
-    item_is_neutral = color_name in NEUTRAL_COLORS
-
-    compatible, incompatible = [], []
+    compatible, incompatible, harmony_labels = [], [], {}
     for line in wardrobe_text.split('\n'):
         line = line.strip()
         if not line:
@@ -285,29 +280,50 @@ def _shopping_rule_verdict(
         name_match = re.match(r'^(.+?)\s*\(', line)
         name = name_match.group(1).strip() if name_match else line
 
-        color_match = re.search(r'color:\s*(\w+)', line, re.IGNORECASE)
-        wardrobe_color = color_match.group(1).lower() if color_match else ""
-        wardrobe_is_neutral = wardrobe_color in NEUTRAL_COLORS
+        # Extract color — check both `color:` tag and description text
+        color_match = re.search(r'color:\s*([\w ]+?)(?:\s*$|\s+\w+:)', line, re.IGNORECASE)
+        if not color_match:
+            color_match = re.search(r'color:\s*([\w]+)', line, re.IGNORECASE)
+        wardrobe_color = color_match.group(1).strip().lower() if color_match else ""
 
-        # Compatibility logic: neutrals pair with everything;
-        # two non-neutrals from different hue families may clash
-        if item_is_neutral or wardrobe_is_neutral:
+        harmony = color_harmony(color_name, wardrobe_color) if wardrobe_color else "unknown"
+
+        if harmony in ("neutral", "analogous", "complementary"):
             compatible.append(name)
-        elif color_name == wardrobe_color:
-            # same color — monochrome, usually OK for some combos
-            compatible.append(name)
-        else:
+            harmony_labels[name] = harmony
+        elif harmony == "clash":
             incompatible.append(name)
+            harmony_labels[name] = harmony
+        # "unknown" (no color data) → skip; don't wrongly classify
 
     total = len(compatible) + len(incompatible)
     if total == 0:
-        return None  # wardrobe has no items of the target category
+        return None  # wardrobe has no opposite-category items with color data
 
     verdict = "yes" if compatible else "no"
+    cat_singular = category[:-1] if category.endswith("s") else category
+
     if compatible:
-        reason = f"This {color_name} {category[:-1]} pairs well with {len(compatible)} item{'s' if len(compatible) != 1 else ''} in your wardrobe."
+        # Explain the best match with harmony type
+        best = compatible[0]
+        htype = harmony_labels.get(best, "neutral")
+        harmony_phrase = {
+            "neutral":       "works with virtually any colour",
+            "analogous":     "shares a similar colour family",
+            "complementary": "creates an intentional colour contrast",
+        }.get(htype, "pairs well")
+        if len(compatible) == 1:
+            reason = f"This {color_name} {cat_singular} {harmony_phrase} — it pairs well with your {best}."
+        else:
+            reason = (
+                f"This {color_name} {cat_singular} {harmony_phrase} — "
+                f"it pairs well with {compatible[0]} and {len(compatible) - 1} other item{'s' if len(compatible) - 1 != 1 else ''}."
+            )
     else:
-        reason = f"This {color_name} {category[:-1]} may not match well with your current {target_cat}."
+        reason = (
+            f"This {color_name} {cat_singular} clashes with your current {target_cat}. "
+            "The colour combination is likely to look mismatched."
+        )
 
     return {
         "verdict": verdict,

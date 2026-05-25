@@ -133,8 +133,8 @@ export function ShoppingScreen() {
 
           {/* Compatible wardrobe items */}
           {result.compatible_items?.length > 0 && (
-            <div style={{ border: `2px solid ${COLORS.SUCCESS}`, borderRadius: COLORS.RADIUS, padding: 14, background: COLORS.SURFACE }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.SUCCESS, marginBottom: 8 }}>Pairs well with</div>
+            <div aria-label={`Pairs well with: ${result.compatible_items.join(', ')}`} style={{ border: `2px solid ${COLORS.SUCCESS}`, borderRadius: COLORS.RADIUS, padding: 14, background: COLORS.SURFACE }}>
+              <div aria-hidden style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.SUCCESS, marginBottom: 8 }}>Pairs well with</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {result.compatible_items.map((name) => (
                   <span key={name} style={{ border: `2px solid ${COLORS.SUCCESS}`, borderRadius: COLORS.RADIUS, padding: '4px 10px', fontSize: 12, fontWeight: 700, color: COLORS.SUCCESS }}>{name}</span>
@@ -145,8 +145,8 @@ export function ShoppingScreen() {
 
           {/* Incompatible wardrobe items */}
           {result.incompatible_items?.length > 0 && (
-            <div style={{ border: `2px solid ${COLORS.DANGER}`, borderRadius: COLORS.RADIUS, padding: 14, background: COLORS.SURFACE }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.DANGER, marginBottom: 8 }}>Clashes with</div>
+            <div aria-label={`Clashes with: ${result.incompatible_items.join(', ')}`} style={{ border: `2px solid ${COLORS.DANGER}`, borderRadius: COLORS.RADIUS, padding: 14, background: COLORS.SURFACE }}>
+              <div aria-hidden style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: COLORS.DANGER, marginBottom: 8 }}>Clashes with</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {result.incompatible_items.map((name) => (
                   <span key={name} style={{ border: `2px solid ${COLORS.DANGER}`, borderRadius: COLORS.RADIUS, padding: '4px 10px', fontSize: 12, fontWeight: 700, color: COLORS.DANGER }}>{name}</span>
@@ -163,11 +163,11 @@ export function ShoppingScreen() {
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button onClick={reset}
+            <button onClick={reset} aria-label="Scan another item"
               style={{ flex: 1, minHeight: 52, border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, background: COLORS.SURFACE, color: COLORS.TEXT, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
               Scan Another
             </button>
-            <button onClick={() => speak((result.speech_segments || []).map((s) => s.text).join('  '))}
+            <button onClick={() => speak((result.speech_segments || []).map((s) => s.text).join('  '))} aria-label="Read shopping result again"
               style={{ flex: 1, minHeight: 52, border: `2px solid ${COLORS.ACCENT}`, borderRadius: COLORS.RADIUS, background: 'transparent', color: COLORS.ACCENT, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
               Read Again
             </button>

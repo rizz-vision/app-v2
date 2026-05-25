@@ -172,15 +172,15 @@ export function CameraCapture({ onCapture, captureRef, onFrameDescribed, describ
 
   if (error) {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16, textAlign: 'center', background: '#000', borderRadius: 'var(--radius)' }}>
+      <div role="alert" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16, textAlign: 'center', background: '#000', borderRadius: 'var(--radius)' }}>
         <p style={{ fontSize: 15, color: COLORS.DANGER, lineHeight: 1.6 }}>{error}</p>
         {permDenied && (
           <p style={{ fontSize: 13, color: COLORS.TEXT_MUTED, lineHeight: 1.6 }}>
-            In Safari: Settings → {window.location.hostname} → Camera → Allow.<br />
+            In Safari: Settings → {window.location.hostname} → Camera → Allow.
             In Chrome: tap the lock icon → Camera → Allow.
           </p>
         )}
-        <button onClick={() => startCamera()} style={{ padding: '12px 24px', borderRadius: 12, background: COLORS.ACCENT, color: '#fff', fontWeight: 700, fontSize: 15, minHeight: 48 }}>
+        <button onClick={() => startCamera()} aria-label="Retry opening camera" style={{ padding: '12px 24px', borderRadius: 12, background: COLORS.ACCENT, color: '#fff', fontWeight: 700, fontSize: 15, minHeight: 48 }}>
           Retry
         </button>
       </div>

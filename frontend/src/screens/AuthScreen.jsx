@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Screen } from '../components/Screen.jsx'
 import { BigButton } from '../components/BigButton.jsx'
 import { useAuth } from '../contexts/AuthContext.jsx'
+import { useVoice } from '../contexts/VoiceContext.jsx'
 import { COLORS } from '../utils/constants.js'
 
 const inputStyle = {
@@ -20,6 +21,7 @@ const inputStyle = {
 
 export function AuthScreen() {
   const { signIn, signUp, signInWithGoogle } = useAuth()
+  const { speak } = useVoice()
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -29,6 +31,15 @@ export function AuthScreen() {
   const modeRef = useRef(null)
 
   const isBusy = submitting || googleSubmitting
+
+  useEffect(() => {
+    speak('Welcome to Rizzvision. Sign in screen. Enter your email and password, or use Continue with Google.')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Speak auth errors
+  useEffect(() => {
+    if (error) speak(error)
+  }, [error]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const mapError = (msg) => {
     if (!msg) return 'Something went wrong. Please try again.'

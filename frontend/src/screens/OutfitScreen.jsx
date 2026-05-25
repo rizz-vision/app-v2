@@ -86,7 +86,7 @@ export function OutfitScreen() {
       <Screen title="Outfit For…" subtitle={anchorItem ? `Around: ${anchorItem.name}` : "Pick your occasion"}>
         <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 20 }}>
           {OCCASIONS.map((o) => (
-            <button key={o.id} onClick={() => setOccasion(o.id)} aria-pressed={occasion === o.id}
+            <button key={o.id} onClick={() => { setOccasion(o.id); speak(o.label) }} aria-pressed={occasion === o.id} aria-label={o.label}
               style={{
                 display: 'flex', alignItems: 'center', gap: 0,
                 minHeight: 64, width: '100%',
@@ -128,7 +128,7 @@ export function OutfitScreen() {
             { mode: 'wardrobe', label: 'Based on My Wardrobe', desc: `Uses your ${items.length} saved pieces to build a specific look.` },
             { mode: 'general',  label: 'General Advice',       desc: 'Broad styling tips for the occasion.' },
           ].map(({ mode, label, desc }) => (
-            <button key={mode} onClick={() => generateOutfit(mode)}
+            <button key={mode} onClick={() => generateOutfit(mode)} aria-label={`${label}: ${desc}`}
               style={{
                 display: 'flex', alignItems: 'center', gap: 0,
                 minHeight: 72, width: '100%',
@@ -197,7 +197,7 @@ export function OutfitScreen() {
 
 function LoadingBars() {
   return (
-    <div style={{ display: 'flex', gap: 5, alignItems: 'center', height: 40 }}>
+    <div aria-hidden="true" style={{ display: 'flex', gap: 5, alignItems: 'center', height: 40 }}>
       {[0,1,2,3,4].map(i => (
         <span key={i} style={{ display: 'block', width: 6, background: COLORS.ACCENT, borderRadius: 0, animation: `lbar2 800ms ease-in-out infinite`, animationDelay: `${i * 100}ms`, height: '100%' }} />
       ))}

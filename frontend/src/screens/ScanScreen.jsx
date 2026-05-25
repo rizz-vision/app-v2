@@ -352,7 +352,7 @@ function ItemCard({ scanResult, customName, onNameChange, onRemove, onReadAloud,
 
 function LoadingBars() {
   return (
-    <div style={{ display: 'flex', gap: 5, alignItems: 'center', height: 40 }}>
+    <div aria-hidden="true" style={{ display: 'flex', gap: 5, alignItems: 'center', height: 40 }}>
       {[0,1,2,3,4].map(i => (
         <span key={i} style={{ display: 'block', width: 6, background: COLORS.ACCENT, borderRadius: 0, animation: `sbar 800ms ease-in-out infinite`, animationDelay: `${i * 100}ms`, height: '100%' }} />
       ))}

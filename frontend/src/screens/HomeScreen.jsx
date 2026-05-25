@@ -75,7 +75,7 @@ export function HomeScreen() {
             What can I say?
           </button>
           {items.length > 0 && (
-            <div style={{ fontSize: 12, color: COLORS.ACCENT, fontWeight: 700 }}>
+            <div aria-live="polite" style={{ fontSize: 12, color: COLORS.ACCENT, fontWeight: 700 }}>
               {items.length} item{items.length !== 1 ? 's' : ''} in wardrobe
             </div>
           )}

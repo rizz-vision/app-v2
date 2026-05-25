@@ -84,8 +84,8 @@ export function EditItemScreen() {
       {field('Name', 'name')}
 
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 13, color: COLORS.TEXT_MUTED, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Category</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div id="edit-category-label" style={{ fontSize: 13, color: COLORS.TEXT_MUTED, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Category</div>
+        <div role="group" aria-labelledby="edit-category-label" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {CATEGORIES.map((cat) => {
             const active = formValues.category === cat.id
             return (

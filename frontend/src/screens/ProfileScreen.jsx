@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Screen } from '../components/Screen.jsx'
 import { BigButton } from '../components/BigButton.jsx'
 import { useProfile } from '../contexts/ProfileContext.jsx'
@@ -24,6 +24,10 @@ export function ProfileScreen() {
   const [patterns, setPatterns] = useState(profile.patterns || [])
   const [stylePrefs, setStylePrefs] = useState(profile.stylePrefs || '')
   const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    speak('My Profile screen. Set your body type, colour preferences, and style. All fields are optional. Tap Save when done.')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleArr = (arr, setArr, val) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val])

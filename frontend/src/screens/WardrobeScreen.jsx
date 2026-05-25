@@ -61,8 +61,8 @@ export function WardrobeScreen() {
   if (loading) {
     return (
       <Screen title="My Wardrobe" subtitle="Loading…">
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-          <LoadingBars />
+        <div role="status" aria-live="polite" aria-label="Loading your wardrobe" style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+          <LoadingBars aria-hidden />
         </div>
       </Screen>
     )
@@ -125,7 +125,7 @@ function FilterChip({ label, active, onClick }) {
 
 function LoadingBars() {
   return (
-    <div style={{ display: 'flex', gap: 5, alignItems: 'center', height: 40 }}>
+    <div aria-hidden="true" style={{ display: 'flex', gap: 5, alignItems: 'center', height: 40 }}>
       {[0,1,2,3,4].map(i => (
         <span key={i} style={{ display: 'block', width: 6, background: COLORS.ACCENT, borderRadius: 0, animation: `lbar 800ms ease-in-out infinite`, animationDelay: `${i * 100}ms`, height: '100%' }} />
       ))}

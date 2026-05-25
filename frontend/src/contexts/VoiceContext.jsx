@@ -82,8 +82,17 @@ export function VoiceProvider({ children }) {
       }
       audio.play()
     } catch {
-      // TTS backend unavailable — silent fail, no browser TTS
+      // TTS backend unavailable — fall back to browser SpeechSynthesis
       setIsSpeaking(false)
+      try {
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel()
+          const utt = new SpeechSynthesisUtterance(text)
+          utt.lang = language === 'hi' ? 'hi-IN' : 'en-US'
+          utt.rate = 0.95
+          window.speechSynthesis.speak(utt)
+        }
+      } catch {}
     }
   }, [language])
 

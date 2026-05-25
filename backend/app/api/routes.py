@@ -199,6 +199,92 @@ SHOPPING_SCHEMA = {
 }
 
 
+def _shopping_rule_verdict(
+    category: str,
+    color_name: str,
+    wardrobe_text: str,
+    profile_context: str,
+) -> dict | None:
+    """
+    Instant rule-based verdict. Returns a result dict or None if not enough info.
+    Runs in <1ms — no LLM, no network.
+    """
+    import re
+
+    # Check avoided colors first
+    if profile_context and profile_context.strip():
+        avoid_match = re.search(r'MUST AVOID.*?:\s*([^\n.]+)', profile_context, re.IGNORECASE)
+        if avoid_match:
+            avoided = [c.strip().lower() for c in avoid_match.group(1).split(',')]
+            for av_color in avoided:
+                if av_color and av_color in color_name.lower():
+                    return {
+                        "verdict": "no",
+                        "reason": f"You have marked {av_color} as a colour to avoid. Skip this one.",
+                        "compatible": [],
+                        "incompatible": [],
+                    }
+
+    if not wardrobe_text or not wardrobe_text.strip():
+        return None  # no wardrobe → can't do compatibility matching
+
+    # Parse wardrobe lines: "Name (category): description color: colorname"
+    # Find items of the opposite category
+    if category == "tops":
+        target_cat = "bottoms"
+    elif category == "bottoms":
+        target_cat = "tops"
+    else:
+        return None  # dress/outerwear etc — fall through to Gemini
+
+    # Color compatibility rules (simplified but effective)
+    NEUTRAL_COLORS = {"black", "white", "grey", "beige", "navy"}
+    item_is_neutral = color_name in NEUTRAL_COLORS
+
+    compatible, incompatible = [], []
+    for line in wardrobe_text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        cat_match = re.search(r'\((\w+)\)', line)
+        if not cat_match or cat_match.group(1) != target_cat:
+            continue
+
+        name_match = re.match(r'^(.+?)\s*\(', line)
+        name = name_match.group(1).strip() if name_match else line
+
+        color_match = re.search(r'color:\s*(\w+)', line, re.IGNORECASE)
+        wardrobe_color = color_match.group(1).lower() if color_match else ""
+        wardrobe_is_neutral = wardrobe_color in NEUTRAL_COLORS
+
+        # Compatibility logic: neutrals pair with everything;
+        # two non-neutrals from different hue families may clash
+        if item_is_neutral or wardrobe_is_neutral:
+            compatible.append(name)
+        elif color_name == wardrobe_color:
+            # same color — monochrome, usually OK for some combos
+            compatible.append(name)
+        else:
+            incompatible.append(name)
+
+    total = len(compatible) + len(incompatible)
+    if total == 0:
+        return None  # wardrobe has no items of the target category
+
+    verdict = "yes" if compatible else "no"
+    if compatible:
+        reason = f"This {color_name} {category[:-1]} pairs well with {len(compatible)} item{'s' if len(compatible) != 1 else ''} in your wardrobe."
+    else:
+        reason = f"This {color_name} {category[:-1]} may not match well with your current {target_cat}."
+
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "compatible": compatible,
+        "incompatible": incompatible,
+    }
+
+
 @router.post("/shopping-analyze")
 async def shopping_analyze(
     image: UploadFile = File(...),
@@ -206,21 +292,66 @@ async def shopping_analyze(
     profile_context: Optional[str] = Form(""),
 ):
     import io
+    import numpy as np
     from PIL import Image as PILImage
+    from app.services.color_extractor import extract_color
 
     raw = await image.read()
-    img = PILImage.open(io.BytesIO(raw)).convert("RGB")
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=92)
+    img_pil = PILImage.open(io.BytesIO(raw)).convert("RGB")
+    img_np = np.array(img_pil)
 
-    profile_note = f"\nUser profile: {profile_context}" if profile_context and profile_context.strip() else ""
+    # ── Phase 1: fast color extraction + clothing detection (parallel) ────────
+    color_name, color_rgb = await asyncio.to_thread(extract_color, img_np)
+
+    # Also run the clothing detector for category
+    try:
+        detection = await asyncio.to_thread(clothing_detector.detect, img_np)
+        fast_category = detection.category  # "tops" or "bottoms" etc.
+    except Exception:
+        fast_category = "tops"  # fallback if detector fails in shopping context
 
     has_wardrobe = bool(wardrobe and wardrobe.strip() and wardrobe.strip() not in ("[]", ""))
+
+    # ── Phase 2: try rule-based instant verdict ────────────────────────────────
+    rule_result = _shopping_rule_verdict(fast_category, color_name, wardrobe or "", profile_context or "")
+
+    if rule_result is not None:
+        # We have a fast verdict — return immediately without calling Gemini
+        verdict = rule_result["verdict"]
+        verdict_reason = rule_result["reason"]
+        compatible = rule_result["compatible"]
+        incompatible = rule_result["incompatible"]
+        item_desc = f"A {color_name} {fast_category[:-1] if fast_category.endswith('s') else fast_category}."
+
+        segments = [
+            {"id": "item", "text": item_desc},
+            {"id": "verdict", "text": verdict_reason},
+        ]
+        if compatible:
+            segments.append({"id": "compatible", "text": "Pairs with: " + ", ".join(compatible) + "."})
+        if incompatible:
+            segments.append({"id": "incompatible", "text": "May clash with: " + ", ".join(incompatible) + "."})
+
+        return {
+            "speech_segments": segments,
+            "has_wardrobe": has_wardrobe,
+            "buy_verdict": verdict,
+            "detected_category": fast_category,
+            "compatible_items": compatible,
+            "incompatible_items": incompatible,
+            "fast_path": True,
+        }
+
+    # ── Phase 3: fall through to Gemini for complex/no-wardrobe cases ─────────
+    buf = io.BytesIO()
+    img_pil.save(buf, format="JPEG", quality=92)
+
+    profile_note = f"\nUser profile: {profile_context}" if profile_context and profile_context.strip() else ""
 
     if has_wardrobe:
         wardrobe_section = (
             f"The user's wardrobe contains the following items:\n{wardrobe}\n\n"
-            "The scanned item is either a top or a bottom.\n"
+            f"The scanned item is a {fast_category} with colour: {color_name}.\n"
             "- If it is a TOP: list which BOTTOMS from the wardrobe it pairs well with and which it clashes with.\n"
             "- If it is a BOTTOM: list which TOPS from the wardrobe it pairs well with and which it clashes with.\n"
             "Only reference items actually listed in the wardrobe. Use their exact names."
@@ -228,7 +359,7 @@ async def shopping_analyze(
     else:
         wardrobe_section = (
             "The user has no saved wardrobe items.\n"
-            "Give a general verdict on whether this item is versatile and worth buying."
+            f"The item colour is {color_name}. Give a general verdict on whether this item is versatile and worth buying."
         )
 
     prompt = (
@@ -237,10 +368,10 @@ async def shopping_analyze(
         f"{profile_note}\n\n"
         f"{wardrobe_section}\n\n"
         "Return JSON with:\n"
-        "- detected_category: exactly 'tops' or 'bottoms' based on what you see in the image\n"
+        f"- detected_category: exactly '{fast_category}'\n"
         "- item_description: one sentence describing the garment (type, color, fabric, cut)\n"
         "- buy_verdict: exactly 'yes' or 'no'\n"
-        "- verdict_reason: 1-2 sentences explaining the verdict. If wardrobe exists, name the specific compatible items.\n"
+        "- verdict_reason: 1-2 sentences explaining the verdict. If wardrobe exists, name specific compatible items.\n"
         "- compatible_items: list of wardrobe item names this pairs well with (empty list if no wardrobe)\n"
         "- incompatible_items: list of wardrobe item names this clashes with (empty list if no wardrobe)"
     )
@@ -263,8 +394,8 @@ async def shopping_analyze(
             data = json.loads(response.text)
         except Exception:
             data = {
-                "detected_category": "tops",
-                "item_description": "I can see a clothing item.",
+                "detected_category": fast_category,
+                "item_description": f"A {color_name} clothing item.",
                 "buy_verdict": "no",
                 "verdict_reason": "Unable to assess right now. Please try again.",
                 "compatible_items": [],
@@ -282,7 +413,7 @@ async def shopping_analyze(
             )
         except Exception:
             data = {
-                "detected_category": "tops",
+                "detected_category": fast_category,
                 "item_description": groq_fallback.FALLBACK_NOTE,
                 "buy_verdict": "no",
                 "verdict_reason": "Unable to assess right now. Please try again.",
@@ -299,14 +430,14 @@ async def shopping_analyze(
     incompatible = data.get("incompatible_items") or []
 
     # Hard-enforce avoided colors from profile — override Gemini's verdict
+    import re
     if profile_context and profile_context.strip():
-        import re
         avoid_match = re.search(r'MUST AVOID.*?:\s*([^\n.]+)', profile_context, re.IGNORECASE)
         if avoid_match:
             avoided = [c.strip().lower() for c in avoid_match.group(1).split(',')]
-            item_desc_lower = (data.get("item_description") or "").lower()
+            check_text = f"{color_name} {data.get('item_description', '')}".lower()
             for color in avoided:
-                if color and color in item_desc_lower:
+                if color and color in check_text:
                     verdict = "no"
                     verdict_reason = f"You have marked {color} as a colour to avoid. This item should be skipped."
                     break
@@ -325,9 +456,10 @@ async def shopping_analyze(
         "speech_segments": segments,
         "has_wardrobe": has_wardrobe,
         "buy_verdict": verdict,
-        "detected_category": data.get("detected_category", "tops"),
+        "detected_category": data.get("detected_category", fast_category),
         "compatible_items": compatible,
         "incompatible_items": incompatible,
+        "fast_path": False,
     }
 
 

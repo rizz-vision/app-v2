@@ -8,7 +8,7 @@ import { shoppingAnalyze } from '../services/api.js'
 import { COLORS } from '../utils/constants.js'
 
 export function ShoppingScreen() {
-  const { speak } = useVoice()
+  const { speak, language } = useVoice()
   const { items: wardrobeItems } = useWardrobe()
   const { goBack } = useApp()
   const { profileContext } = useProfile()
@@ -18,16 +18,30 @@ export function ShoppingScreen() {
   const [errorMsg, setErrorMsg] = useState('')
   const [capturedUrl, setCapturedUrl] = useState(null)
   const analyzingRef = useRef(false)
+  const cameraRef = useRef(null)
 
   const topsInWardrobe    = wardrobeItems.filter((i) => i.category === 'tops')
   const bottomsInWardrobe = wardrobeItems.filter((i) => i.category === 'bottoms')
   const emptyWardrobe     = wardrobeItems.length === 0
 
   useEffect(() => {
-    speak(emptyWardrobe
-      ? 'Shopping mode. Tap the camera button to scan a clothing item for style advice.'
-      : `Shopping mode. Tap the camera button to scan a top or bottom. I will check it against your ${wardrobeItems.length} wardrobe items.`)
+    const wardrobeNote = emptyWardrobe
+      ? 'Tap the camera button to scan a clothing item for style advice.'
+      : `Tap the camera button to scan a top or bottom. I will check it against your ${wardrobeItems.length} wardrobe items.`
+    speak(`Shopping mode. ${wardrobeNote} Say "describe this" at any time to hear colour, pattern, and fabric details.`)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Voice: "describe this" triggers a live frame description ──────────────
+  useEffect(() => {
+    const handler = (e) => {
+      const cmd = e.detail
+      if (cmd.type === 'DESCRIBE_FRAME' && phase === 'camera') {
+        cameraRef.current?.describe?.()
+      }
+    }
+    window.addEventListener('voiceCommand', handler)
+    return () => window.removeEventListener('voiceCommand', handler)
+  }, [phase])
 
   const handleCapture = useCallback(async (blob, dataUrl) => {
     if (analyzingRef.current) return
@@ -175,8 +189,20 @@ export function ShoppingScreen() {
       )}
 
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-        <CameraCapture onCapture={handleCapture} aspectRatio="unset" />
-        <div style={{ position: 'absolute', bottom: 16, left: 14, right: 14 }}>
+        <CameraCapture
+          onCapture={handleCapture}
+          captureRef={cameraRef}
+          onFrameDescribed={(t) => speak(t)}
+          describeMode="shopping"
+          language={language}
+          aspectRatio="unset"
+        />
+        <div style={{ position: 'absolute', bottom: 16, left: 14, right: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ background: 'rgba(10,10,8,0.85)', border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: '6px 14px', textAlign: 'center' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: COLORS.ACCENT, margin: 0, letterSpacing: 0.5 }}>
+              Say "describe this" — hear colour, pattern &amp; fabric
+            </p>
+          </div>
           <div style={{ background: COLORS.BG, border: `2px solid ${COLORS.BORDER}`, borderRadius: COLORS.RADIUS, padding: '8px 16px', textAlign: 'center' }}>
             <p style={{ fontSize: 12, fontWeight: 700, color: COLORS.TEXT_MUTED, margin: 0 }}>
               {emptyWardrobe

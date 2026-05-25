@@ -405,7 +405,11 @@ async def context_chat(
 # ---------------------------------------------------------------------------
 
 @router.post("/describe-frame")
-async def describe_frame(image: UploadFile = File(...), language: Optional[str] = Form("en")):
+async def describe_frame(
+    image: UploadFile = File(...),
+    language: Optional[str] = Form("en"),
+    mode: Optional[str] = Form("general"),
+):
     import io
     from PIL import Image as PILImage
 
@@ -415,11 +419,22 @@ async def describe_frame(image: UploadFile = File(...), language: Optional[str] 
     img.save(buf, format="JPEG", quality=75)
 
     lang_name = LANGUAGE_NAMES.get(language or "en", "English")
-    prompt = (
-        f"Describe what you see in this image in 1-2 short sentences in {lang_name}. "
-        "Focus on what's most prominent — the main subject, its position in frame, and lighting. "
-        "Write for text-to-speech. No markdown."
-    )
+
+    if (mode or "general") == "shopping":
+        prompt = (
+            f"Describe the clothing item in this image in 2-3 short sentences in {lang_name}. "
+            "Focus on: exact colour name, pattern (e.g. solid, plaid, floral, striped, graphic print), "
+            "fabric feel (cotton, linen, denim, silk-like, etc.), and fit/cut (oversized, slim, cropped, etc.). "
+            "Be concrete and tactile — as if describing it to someone who cannot see it. "
+            "Write for text-to-speech. No markdown."
+        )
+    else:
+        prompt = (
+            f"Describe what you see in this image in 1-2 short sentences in {lang_name}. "
+            "Focus on what's most prominent — the main subject, its position in frame, and lighting. "
+            "Write for text-to-speech. No markdown."
+        )
+
     try:
         response = _gemini().models.generate_content(
             model=GEMINI_MODEL,

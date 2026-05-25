@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { COLORS } from '../utils/constants.js'
 import { describeFrame } from '../services/api.js'
 
-export function CameraCapture({ onCapture, captureRef, onFrameDescribed, facingMode: initialFacing = 'environment', aspectRatio = '3/4', language = 'en' }) {
+export function CameraCapture({ onCapture, captureRef, onFrameDescribed, describeMode = 'general', facingMode: initialFacing = 'environment', aspectRatio = '3/4', language = 'en' }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -125,7 +125,7 @@ export function CameraCapture({ onCapture, captureRef, onFrameDescribed, facingM
       setDescribing(true)
       onFrameDescribed?.('Describing what I see...')
       try {
-        const data = await describeFrame(blob, language)
+        const data = await describeFrame(blob, language, describeMode)
         onFrameDescribed?.(data.description || 'Nothing clear in frame.')
       } catch {
         onFrameDescribed?.('Could not describe the frame right now.')
@@ -162,8 +162,8 @@ export function CameraCapture({ onCapture, captureRef, onFrameDescribed, facingM
   }, [onCapture])
 
   useEffect(() => {
-    if (captureRef) captureRef.current = capture
-  }, [captureRef, capture])
+    if (captureRef) captureRef.current = { capture, describe: describeCurrentFrame }
+  }, [captureRef, capture, describeCurrentFrame])
 
   useEffect(() => {
     startCamera()

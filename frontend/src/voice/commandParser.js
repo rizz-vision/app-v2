@@ -25,6 +25,9 @@ export function parseCommand(transcript) {
   if (/\b(save|add to wardrobe|keep this)\b/.test(t))                      return { intent: 'save_item' }
   if (/\b(capture|take|shoot)\b/.test(t))                                  return { intent: 'capture' }
 
+  // ── Live frame description ─────────────────────────────────────────────────
+  if (/\b(describe (this|what (i see|you see|is here))|what (is this|am i holding|do i see)|what('s| is) (in front of me|this))\b/.test(t)) return { intent: 'describe_frame' }
+
   // ── Help ───────────────────────────────────────────────────────────────────
   if (/\b(help|what can i (say|do)|commands|options)\b/.test(t))           return { intent: 'help' }
   if (/\b(where am i|what screen|current screen)\b/.test(t))               return { intent: 'describe_screen' }

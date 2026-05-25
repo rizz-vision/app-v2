@@ -163,6 +163,9 @@ export function VoiceProvider({ children }) {
         speak(helps[current.screen] ?? helps.HOME)
         break
       }
+      case 'describe_frame':
+        window.dispatchEvent(new CustomEvent('voiceCommand', { detail: { type: 'DESCRIBE_FRAME' } }))
+        break
       case 'read_wardrobe':
         window.dispatchEvent(new CustomEvent('voiceCommand', { detail: { type: 'READ_WARDROBE' } }))
         break

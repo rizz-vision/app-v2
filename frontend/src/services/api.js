@@ -69,10 +69,11 @@ export async function contextChat({ question, feature = 'scan', resultContext = 
   return post('/context-chat', fd)
 }
 
-export async function describeFrame(imageBlob, language = 'en') {
+export async function describeFrame(imageBlob, language = 'en', mode = 'general') {
   const fd = new FormData()
   fd.append('image', imageBlob, 'frame.jpg')
   fd.append('language', language)
+  fd.append('mode', mode)
   return post('/describe-frame', fd, TIMEOUTS.analyze)
 }
 

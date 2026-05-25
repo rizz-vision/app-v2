@@ -1,0 +1,19 @@
+{
+  "thresholds": {
+    "tops": 0.935,
+    "bottoms": 0.935,
+    "footwear": 0.535,
+    "outerwear": 0.6,
+    "dress": 0.94
+  },
+  "classes": [
+    "tops",
+    "bottoms",
+    "footwear",
+    "outerwear",
+    "dress"
+  ],
+  "model_version": "efficientnetb3-multilabel-v3",
+  "img_size": 300,
+  "notes": "Multi-label sigmoid. Full scene images, no cropping. Per-class FPR \u2264 2%."
+}

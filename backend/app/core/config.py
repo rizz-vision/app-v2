@@ -12,8 +12,8 @@ GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 GROQ_TEXT_MODEL: str = os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile")
 GROQ_VISION_MODEL: str = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
-CLOTHING_MODEL_PATH: str = os.getenv("CLOTHING_MODEL_PATH", "model/clothing_classifier_v3.keras")
-CLOTHING_THRESHOLD_PATH: str = os.getenv("CLOTHING_THRESHOLD_PATH", "model/thresholds_v3.json")
+CLOTHING_MODEL_PATH: str = os.getenv("CLOTHING_MODEL_PATH", "model/clothing_classifier_v4.keras")
+CLOTHING_THRESHOLD_PATH: str = os.getenv("CLOTHING_THRESHOLD_PATH", "model/thresholds_v4.json")
 
 # OpenCV quality gate thresholds
 MIN_IMAGE_DIM: int = 100

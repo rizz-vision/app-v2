@@ -42,12 +42,22 @@ class AnalyzeResponse(BaseModel):
     latency_ms: int
 
 
-class QuickScanResponse(BaseModel):
+class GarmentScanItem(BaseModel):
     suggested_name: str
     category: str
-    description: str          # kept for backward compat
-    short_description: str    # 1 sentence for quick display/TTS
-    long_description: str     # 3-4 sentences stored in wardrobe
+    color: str
+    short_description: str
+    long_description: str
+
+
+class QuickScanResponse(BaseModel):
+    items: list[GarmentScanItem]          # all detected garments (multi-scan)
+    # Primary item fields kept for backward compat (mirrors items[0])
+    suggested_name: str
+    category: str
+    description: str
+    short_description: str
+    long_description: str
     color: str
 
 

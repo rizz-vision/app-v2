@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from typing import Optional
 from app.services import image_ingestion, clothing_detector, llm_feedback, response_shaper
 from app.services import tts_service
-from app.models.schemas import AnalyzeResponse, QuickScanResponse
+from app.models.schemas import AnalyzeResponse, QuickScanResponse, GarmentScanItem
 from app.core.config import GEMINI_MODEL
 from app.errors.handlers import ImageQualityError
 
@@ -64,25 +64,38 @@ async def analyze(
 QUICK_SCAN_SCHEMA = {
     "type": "object",
     "properties": {
-        "suggested_name": {"type": "string"},
-        "category": {"type": "string"},
-        "color": {"type": "string"},
-        "short_description": {"type": "string"},
-        "long_description": {"type": "string"},
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "suggested_name":    {"type": "string"},
+                    "category":          {"type": "string"},
+                    "color":             {"type": "string"},
+                    "short_description": {"type": "string"},
+                    "long_description":  {"type": "string"},
+                },
+                "required": ["suggested_name", "category", "color", "short_description", "long_description"],
+            },
+        }
     },
-    "required": ["suggested_name", "category", "color", "short_description", "long_description"],
+    "required": ["items"],
 }
 
 
-QUICK_SCAN_PROMPT = (
-    "Identify the clothing item in this image. Return JSON with:\n"
-    "- suggested_name: short item name (e.g. 'Navy Graphic Tee')\n"
-    "- category: one of tops/bottoms/outerwear/shoes/accessories/other\n"
-    "- color: primary color description\n"
-    "- short_description: one sentence, max 15 words, describing what you see (fabric, color, print)\n"
-    "- long_description: 3-4 sentences covering fabric feel, cut/fit, graphic/print details if any, "
-    "and what occasions or styles it suits. Concrete and tactile — no vague words like 'nice' or 'great'."
-)
+def _build_quick_scan_prompt(categories: list[str]) -> str:
+    cats = ", ".join(categories) if categories else "clothing"
+    return (
+        f"This image contains the following garment types detected by the clothing classifier: {cats}.\n"
+        "For EACH detected garment type, return one entry in the items array with:\n"
+        "- suggested_name: short descriptive name (e.g. 'Navy Graphic Tee')\n"
+        "- category: one of tops/bottoms/footwear/outerwear/dress\n"
+        "- color: primary color\n"
+        "- short_description: one sentence, max 15 words, describing the specific garment\n"
+        "- long_description: 3-4 sentences covering fabric feel, cut/fit, print details if any, "
+        "and what occasions it suits. Concrete and tactile — no vague words like 'nice' or 'great'.\n"
+        "Only describe garments visible in the image. Do not invent items."
+    )
 
 
 @router.post("/quick-scan", response_model=QuickScanResponse)
@@ -93,12 +106,14 @@ async def quick_scan(image: UploadFile = File(...)):
     raw = await image.read()
 
     image_rgb = image_ingestion.ingest(raw)
-    await asyncio.to_thread(clothing_detector.detect, image_rgb)
+    detection = await asyncio.to_thread(clothing_detector.detect, image_rgb)
 
     img = Image.open(io.BytesIO(raw)).convert("RGB")
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
     jpeg = buf.getvalue()
+
+    prompt = _build_quick_scan_prompt(detection.categories)
 
     gemini_unavailable = False
     try:
@@ -106,7 +121,7 @@ async def quick_scan(image: UploadFile = File(...)):
             model=GEMINI_MODEL,
             contents=[
                 types.Part.from_bytes(data=jpeg, mime_type="image/jpeg"),
-                QUICK_SCAN_PROMPT,
+                prompt,
             ],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -121,16 +136,33 @@ async def quick_scan(image: UploadFile = File(...)):
         gemini_unavailable = True
         data = groq_fallback.vision_json(
             jpeg,
-            QUICK_SCAN_PROMPT,
+            prompt,
             schema_hint=str(QUICK_SCAN_SCHEMA),
         )
 
-    data["description"] = data.get("short_description", "")
+    raw_items = data.get("items", [])
+    if not raw_items:
+        # Fallback: wrap legacy single-item response
+        raw_items = [data]
+
     if gemini_unavailable:
-        data["short_description"] = (
-            groq_fallback.FALLBACK_NOTE + " " + data.get("short_description", "")
-        ).strip()
-    return QuickScanResponse(**data)
+        for item in raw_items:
+            item["short_description"] = (
+                groq_fallback.FALLBACK_NOTE + " " + item.get("short_description", "")
+            ).strip()
+
+    items = [GarmentScanItem(**{k: item.get(k, "") for k in GarmentScanItem.model_fields}) for item in raw_items]
+    primary = items[0]
+
+    return QuickScanResponse(
+        items=items,
+        suggested_name=primary.suggested_name,
+        category=primary.category,
+        color=primary.color,
+        short_description=primary.short_description,
+        long_description=primary.long_description,
+        description=primary.short_description,
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -55,7 +55,7 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.error("[1/2] TTS load FAILED: %s", exc)
 
-    logger.info("[2/2] Loading clothing classifier v3 (115 MB)...")
+    logger.info("[2/2] Loading clothing classifier v5 (121 MB)...")
     try:
         await asyncio.to_thread(clothing_detector._load)
         t = clothing_detector._thresholds

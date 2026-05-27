@@ -1,0 +1,26 @@
+{
+  "thresholds": {
+    "tops": 0.395,
+    "bottoms": 0.36,
+    "footwear": 0.72,
+    "outerwear": 0.605,
+    "dress": 0.61
+  },
+  "classes": [
+    "tops",
+    "bottoms",
+    "footwear",
+    "outerwear",
+    "dress"
+  ],
+  "model_version": "efficientnetb3-multilabel-v5",
+  "img_size": 300,
+  "class_weights": {
+    "tops": 1.0,
+    "bottoms": 1.0,
+    "footwear": 1.8,
+    "outerwear": 2.5,
+    "dress": 1.2
+  },
+  "notes": "Multi-label sigmoid. 40K cap. Class-weighted loss (outerwear 2.5x, footwear 1.8x). Target TPR \u2265 92%."
+}

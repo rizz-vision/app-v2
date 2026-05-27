@@ -81,5 +81,5 @@ def detect(image_rgb: np.ndarray) -> DetectionResult:
         categories=categories,
         category=primary,
         scores=scores,
-        model_version="efficientnetb3-multilabel-v4",
+        model_version="efficientnetb3-multilabel-v5",
     )

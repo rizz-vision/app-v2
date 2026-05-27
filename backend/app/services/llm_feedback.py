@@ -55,6 +55,28 @@ _DEFAULT_SYSTEM_PROMPT = f"""You are a precise fashion analyst. Analyze the clot
 Focus on: garment type, fabric weight and texture, fit, color, and any notable detailing.
 {_BASE_RULES}"""
 
+# Per-category focus lines used when building composite multi-label prompts
+_CATEGORY_FOCUS = {
+    "tops":      "Top (t-shirt, shirt, blouse, hoodie, vest): neckline type, sleeve length, fabric weight, fit across chest and shoulders, any print or graphic detail.",
+    "bottoms":   "Bottom (jeans, trousers, shorts, skirt): garment type, rise (high/mid/low), leg cut, fabric weight, waistband style, length, any distressing or pleats.",
+    "footwear":  "Footwear (shoes, boots, sneakers, sandals): shoe type, material, sole style, heel height, closure type, color and finish.",
+    "outerwear": "Outerwear (jacket, coat, blazer, cardigan): garment type, fabric weight and warmth, closure style, collar/lapel, fit across shoulders, length, any hardware or lining.",
+    "dress":     "Dress or jumpsuit: silhouette (A-line, bodycon, wrap, shirt dress), neckline, sleeve length, fabric weight, length (mini/midi/maxi), waist definition, any print or embellishment.",
+}
+
+
+def _build_multi_system_prompt(categories: list[str]) -> str:
+    """Build a composite system prompt covering every detected category."""
+    focus_lines = "\n".join(
+        f"- {_CATEGORY_FOCUS.get(c, c)}" for c in categories
+    )
+    return (
+        "You are a precise fashion analyst. The image contains multiple garment types.\n"
+        f"Analyze EACH item separately, in the order listed:\n{focus_lines}\n"
+        "Return one garments array entry per item.\n"
+        f"{_BASE_RULES}"
+    )
+
 MIRROR_SYSTEM_PROMPT = """You are an honest auditory mirror for a visually impaired user.
 The user is looking at their reflection. Describe exactly what you see — outfit, grooming, and overall appearance.
 Rules:
@@ -142,13 +164,16 @@ def get_feedback(
     category_labels = [_CATEGORY_LABELS.get(c, c) for c in detected]
     garment_list = ", ".join(category_labels)
 
-    # Use system prompt for primary category; fall back to default for multi-item scenes
+    # Build system prompt: composite for multi-label scenes, category-specific for single items
     primary = detection.category
-    system_prompt = SYSTEM_PROMPTS.get(primary, _DEFAULT_SYSTEM_PROMPT)
+    if len(detected) > 1:
+        system_prompt = _build_multi_system_prompt(detected)
+    else:
+        system_prompt = SYSTEM_PROMPTS.get(primary, _DEFAULT_SYSTEM_PROMPT)
 
     context_parts = [
-        f"The ML classifier detected the following garments: {garment_list}.",
-        f"Analyze each garment in detail.",
+        f"The ML classifier detected these garment types in the image: {garment_list}.",
+        "Analyze EACH detected garment separately and return one entry per garment in the garments array.",
     ]
     if occasion:
         context_parts.append(f"The user is dressing for: {occasion}.")

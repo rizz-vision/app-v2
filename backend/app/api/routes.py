@@ -220,7 +220,7 @@ async def outfit_suggestion(
 SHOPPING_SCHEMA = {
     "type": "object",
     "properties": {
-        "detected_category":  {"type": "string"},   # "tops" or "bottoms"
+        "detected_category":  {"type": "string"},   # tops / bottoms / footwear / outerwear / dress
         "item_description":   {"type": "string"},
         "buy_verdict":        {"type": "string"},    # "yes" or "no"
         "verdict_reason":     {"type": "string"},    # 1-2 sentences explaining why
@@ -369,7 +369,11 @@ async def shopping_analyze(
         verdict_reason = rule_result["reason"]
         compatible = rule_result["compatible"]
         incompatible = rule_result["incompatible"]
-        item_desc = f"A {color_name} {fast_category[:-1] if fast_category.endswith('s') else fast_category}."
+        _CAT_SINGULAR = {
+            "tops": "top", "bottoms": "bottom",
+            "footwear": "pair of shoes", "outerwear": "jacket", "dress": "dress",
+        }
+        item_desc = f"A {color_name} {_CAT_SINGULAR.get(fast_category, fast_category)}."
 
         segments = [
             {"id": "item", "text": item_desc},
@@ -399,15 +403,20 @@ async def shopping_analyze(
     if has_wardrobe:
         wardrobe_section = (
             f"The user's wardrobe contains the following items:\n{wardrobe}\n\n"
-            f"The scanned item is a {fast_category} with colour: {color_name}.\n"
-            "- If it is a TOP: list which BOTTOMS from the wardrobe it pairs well with and which it clashes with.\n"
-            "- If it is a BOTTOM: list which TOPS from the wardrobe it pairs well with and which it clashes with.\n"
+            f"The scanned item is categorised as '{fast_category}' with primary colour: {color_name}.\n"
+            "Pairing rules by category:\n"
+            "- TOP: list which BOTTOMS from the wardrobe it pairs well with and which it clashes with.\n"
+            "- BOTTOM: list which TOPS from the wardrobe it pairs well with and which it clashes with.\n"
+            "- OUTERWEAR: list which TOPS and BOTTOMS it layers well over, and any colour clashes.\n"
+            "- DRESS: list which FOOTWEAR and OUTERWEAR from the wardrobe complement it.\n"
+            "- FOOTWEAR: list which wardrobe items (tops, bottoms, or outfits) this suits best.\n"
             "Only reference items actually listed in the wardrobe. Use their exact names."
         )
     else:
         wardrobe_section = (
             "The user has no saved wardrobe items.\n"
-            f"The item colour is {color_name}. Give a general verdict on whether this item is versatile and worth buying."
+            f"The item is a '{fast_category}' in {color_name}. "
+            "Give a general verdict on whether it is versatile and worth buying for everyday use."
         )
 
     prompt = (
@@ -416,7 +425,7 @@ async def shopping_analyze(
         f"{profile_note}\n\n"
         f"{wardrobe_section}\n\n"
         "Return JSON with:\n"
-        f"- detected_category: exactly '{fast_category}'\n"
+        f"- detected_category: one of tops/bottoms/footwear/outerwear/dress — use '{fast_category}'\n"
         "- item_description: one sentence describing the garment (type, color, fabric, cut)\n"
         "- buy_verdict: exactly 'yes' or 'no'\n"
         "- verdict_reason: 1-2 sentences explaining the verdict. If wardrobe exists, name specific compatible items.\n"

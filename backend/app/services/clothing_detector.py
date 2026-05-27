@@ -8,6 +8,9 @@ from app.models.schemas import DetectionResult
 
 LABELS = ["tops", "bottoms", "footwear", "outerwear", "dress"]
 
+# Class weights must match what was used during v5 training
+_CLASS_WEIGHTS = [1.0, 1.0, 1.8, 2.5, 1.2]  # tops, bottoms, footwear, outerwear, dress
+
 # Lazy-loaded globals
 _model = None
 _thresholds: dict[str, float] = {l: 0.5 for l in LABELS}
@@ -26,7 +29,18 @@ def _load():
     if not model_path.exists():
         raise RuntimeError(f"Clothing model not found at {model_path}.")
 
-    _model = tf.keras.models.load_model(str(model_path))
+    # weighted_bce is the custom loss used during v5 training.
+    # Providing it here lets Keras deserialise the compiled model correctly.
+    _pos_weights = tf.constant(_CLASS_WEIGHTS, dtype=tf.float32)
+
+    def weighted_bce(y_true, y_pred):
+        bce = tf.keras.backend.binary_crossentropy(y_true, y_pred)
+        weights = y_true * (_pos_weights - 1.0) + 1.0
+        return tf.reduce_mean(weights * bce)
+
+    _model = tf.keras.models.load_model(
+        str(model_path), custom_objects={"weighted_bce": weighted_bce}
+    )
 
     if threshold_path.exists():
         with open(threshold_path) as f:

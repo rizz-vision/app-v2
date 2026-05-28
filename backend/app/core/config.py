@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY: str = os.environ["GEMINI_API_KEY"]
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_PRO_MODEL: str = os.getenv("GEMINI_PRO_MODEL", "gemini-2.5-pro")
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+GEMINI_PRO_MODEL: str = os.getenv("GEMINI_PRO_MODEL", "gemini-3.1-pro-preview")
 
 # Groq fallback — optional; set GROQ_API_KEY in Space secrets to enable
 GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
